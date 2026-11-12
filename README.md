@@ -20,7 +20,7 @@ Mailzo is early and still changing quickly.
 
 Download the `.dmg` from [getmailzo.com](https://getmailzo.com) or [Releases](../../releases), open it and drag Mailzo into Applications. After that, Mailzo updates itself.
 
-The app isn't signed by Apple yet, so the first time you open it your Mac will refuse. Click OK or Done, go to **System Settings > Privacy & Security**, scroll down and click **Open Anyway**.
+Mailzo is signed and checked by Apple, so it opens like any other app. It needs a Mac with Apple silicon (M1 or later).
 
 ## How it's built
 
