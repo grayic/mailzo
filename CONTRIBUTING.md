@@ -16,6 +16,6 @@ Before sending a pull request:
 
 ## What lives here
 
-This repository holds everything that runs on the person's own device: the app, the mail engine and every feature that works with the person's own keys. Paid Mailzo Cloud features need our servers, and that server code lives elsewhere. The app only has small, clearly marked points that call those servers, and they do nothing without a Cloud account.
+This repository holds everything that runs on the person's own device: the app, the mail engine and every feature that works with the person's own keys. A few optional online features need our servers, and that server code lives elsewhere. The app only has small, clearly marked points that call those servers, and they do nothing unless they're switched on.
 
 By contributing, you agree your work is released under this project's [licence](LICENSE).

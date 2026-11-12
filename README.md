@@ -86,7 +86,7 @@ Mailzo is signed and checked by Apple, so it opens like any other app. It needs 
 ## FAQ
 
 **Is Mailzo really free?**
-Yes. The Mac app and all its features are free and open source. Mailzo Cloud is an optional paid service that adds a web version, mail and scheduled sending that keep going with your Mac closed, AI included without a key, a daily brief and AI sorting.
+Yes. The Mac app and every feature in it are free and open source. No trial, no account and no hidden charges.
 
 **Does Mailzo read or store my email on its servers?**
 No. Your mail is stored encrypted on your Mac and goes straight between your Mac and your own mail provider. The app talks to Mailzo's account server only if you sign in, and then only for sign-in codes, your device list and an encrypted vault for settings, which can't read your mail or passwords.
@@ -98,7 +98,7 @@ Gmail, Google Workspace, Outlook, Hotmail, Microsoft 365, iCloud, Yahoo, Fastmai
 No. AI is optional. Apple Intelligence works free on your Mac, and you can also use a Claude or ChatGPT plan you already have, or your own API key. Encrypted email never goes to AI.
 
 **Is there a Windows, iPhone or web version?**
-Mailzo is for the Mac today. A web version is part of Mailzo Cloud.
+Mailzo is for the Mac today. Windows and mobile apps are coming soon.
 
 **How is Mailzo different from Spark, Superhuman or Apple Mail?**
 Mailzo is free and open source, keeps your mail on your own Mac instead of its servers, and lets you choose your AI. See the [full comparison](https://getmailzo.com/#compare).
@@ -128,7 +128,7 @@ How it's built:
 - `app/ui/` is the screens (React). `app/src-tauri/` is the Mac app around them (Tauri).
 - `dev/` has small fake mail and sign-in servers, so everything can be tested without real accounts.
 - `docs/DESIGN.md` is the design system. Raw colours and sizes belong only in `app/ui/tokens.css`.
-- Paid Mailzo Cloud features run on our servers and switch on after signing in to a paid account. Their server side isn't part of this repository.
+- A few optional online features run on Mailzo's own servers. Their server side isn't part of this repository.
 
 To use your own account server, set `INBOX_ACCOUNT_SERVER` when building. Browser sign-in for Google and Microsoft needs your own client IDs in `INBOX_GOOGLE_CLIENT_ID`, `INBOX_GOOGLE_CLIENT_SECRET` and `INBOX_MICROSOFT_CLIENT_ID`. Copy `.env.example` to `.env`, which is never committed, and fill them in.
 
