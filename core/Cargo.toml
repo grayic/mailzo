@@ -1,0 +1,49 @@
+[package]
+name = "mailcore"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+hickory-resolver = { version = "0.26.3", default-features = false, features = ["system-config", "tokio"] }
+idna = "1"
+mail-auth = { version = "0.15.1", default-features = false, features = ["dns-hickory", "rust-crypto"] }
+unicode-security = "0.1.3"
+ammonia = "4.2.4"
+# The same HTML reader ammonia uses, to tell what text an email really shows.
+html5ever = "0.40.1"
+unicode-normalization = "0.1"
+async-imap = { version = "0.12.0", default-features = false, features = ["runtime-tokio"] }
+chacha20poly1305 = { version = "0.10", features = ["std", "getrandom"] }
+crypto_box = { version = "0.9", features = ["seal", "std", "rand_core"] }
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
+chrono-tz = "0.10"
+iana-time-zone = "0.1"
+data-encoding = "2"
+futures-util = "0.3.34"
+hkdf = "0.12"
+keyring = { version = "3", features = ["apple-native"] }
+lettre = { version = "0.11.23", default-features = false, features = ["builder", "smtp-transport", "tokio1", "tokio1-rustls", "ring", "webpki-roots"] }
+mail-parser = "1.0.1"
+pgp = { version = "0.21", default-features = false }
+rand = "0.8"
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "json", "form"] }
+rusqlite = { version = "0.41.1", features = ["bundled-sqlcipher"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+sha2 = "0.10"
+thiserror = "2.0.21"
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "net", "macros", "sync", "time", "io-util", "io-std", "process"] }
+tokio-rustls = { version = "0.26.6", default-features = false, features = ["ring", "tls12", "logging"] }
+tracing = "0.1.44"
+webpki-roots = "1.0.11"
+
+[dev-dependencies]
+axum = "0.8"
+fakeai = { path = "../dev/fakeai" }
+fakeoauth = { path = "../dev/fakeoauth" }
+fakegoogle = { path = "../dev/fakegoogle" }
+fakeimap = { path = "../dev/fakeimap" }
+fakesmtp = { path = "../dev/fakesmtp" }
+tempfile = "3.27.0"

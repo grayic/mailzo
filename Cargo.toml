@@ -1,0 +1,9 @@
+[workspace]
+resolver = "2"
+members = ["core", "dev/fakeimap", "dev/fakegoogle", "dev/fakeai", "dev/fakeoauth", "dev/fakesmtp", "dev/devhost", "dev/keyhelper", "app/src-tauri"]
+
+[workspace.package]
+license = "AGPL-3.0-only"
+version = "1.0.0"
+edition = "2021"
+publish = false

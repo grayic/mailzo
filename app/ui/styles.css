@@ -1,0 +1,8272 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+/*
+ * The components. Only token names belong here, never raw colours or sizes.
+ */
+
+/* ---------- Base ---------- */
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: var(--canvas);
+  color: var(--ink);
+  font: var(--text-base) / var(--leading-body) var(--font-ui);
+  letter-spacing: var(--track-body);
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  user-select: none;
+  cursor: default;
+}
+
+::selection {
+  background: var(--accent-soft-2);
+}
+
+.selectable {
+  user-select: text;
+  cursor: text;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  letter-spacing: var(--track-title);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:disabled {
+  cursor: default;
+}
+
+*:focus {
+  outline: none;
+}
+
+button:focus-visible,
+a:focus-visible,
+select:focus-visible {
+  box-shadow: var(--ring);
+}
+
+.tool:has(input:focus-visible) {
+  box-shadow: var(--ring);
+}
+
+/* Thin scrollbars that stay out of the way until needed. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: var(--w-scrollbar);
+  height: var(--w-scrollbar);
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: var(--r-full);
+  background: transparent;
+  background-clip: content-box;
+}
+
+:hover::-webkit-scrollbar-thumb {
+  background-color: var(--line-strong);
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+.truncate-1 {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.muted {
+  color: var(--ink-3);
+}
+
+.fine {
+  font-size: var(--text-s);
+  line-height: var(--leading-body);
+  color: var(--ink-3);
+}
+
+.icon {
+  flex-shrink: 0;
+}
+
+.icon-xs {
+  width: var(--icon-xs);
+  height: var(--icon-xs);
+}
+
+.icon-s {
+  width: var(--icon-s);
+  height: var(--icon-s);
+}
+
+.icon-m {
+  width: var(--icon-m);
+  height: var(--icon-m);
+}
+
+.icon-l {
+  width: var(--icon-l);
+  height: var(--icon-l);
+}
+
+.star-on,
+.star-on svg {
+  color: var(--star);
+}
+
+.star-on path {
+  fill: currentColor;
+}
+
+.hstack {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.hstack-m {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  min-width: 0;
+}
+
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.hidden {
+  display: none;
+}
+
+.body-text {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-base);
+  line-height: var(--leading-read);
+}
+
+.strong {
+  color: var(--ink);
+  font-weight: var(--weight-medium);
+}
+
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- Buttons ---------- */
+
+.btn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  height: var(--h-l);
+  padding: 0 var(--s-6);
+  border-radius: var(--r-ml);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0.5px) scale(0.99);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+}
+
+.btn-lg {
+  height: var(--h-3xl);
+  padding: 0 var(--s-9);
+  border-radius: var(--r-l);
+  font-size: var(--text-m);
+}
+
+.btn-sm {
+  height: var(--h-s);
+  padding: 0 var(--s-4);
+  border-radius: var(--r-m);
+  font-size: var(--text-s);
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.btn-primary {
+  background: var(--btn-primary-fill);
+  color: var(--btn-primary-ink);
+  box-shadow: var(--btn-primary-shadow);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--btn-primary-fill-hover);
+}
+
+.btn-primary:active:not(:disabled) {
+  background: var(--btn-primary-fill-press);
+  box-shadow: var(--btn-primary-shadow-press);
+}
+
+.btn-secondary {
+  background: var(--btn-secondary-fill);
+  color: var(--btn-secondary-ink);
+  box-shadow: var(--btn-secondary-shadow);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--btn-secondary-fill-hover);
+}
+
+.btn-secondary:active:not(:disabled) {
+  background: var(--btn-secondary-fill-press);
+  box-shadow: var(--btn-secondary-shadow-press);
+}
+
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible,
+.btn-danger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.btn-ghost {
+  color: var(--ink-2);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.btn-ghost:active:not(:disabled) {
+  background: var(--press);
+}
+
+.btn-danger {
+  background: var(--btn-danger-fill);
+  color: var(--btn-danger-ink);
+  box-shadow: var(--btn-danger-shadow);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--btn-danger-fill-hover);
+}
+
+.btn-danger:active:not(:disabled) {
+  background: var(--btn-danger-fill-press);
+  box-shadow: var(--btn-danger-shadow-press);
+}
+
+.icon-btn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--h-m);
+  height: var(--h-m);
+  border-radius: var(--r-m);
+  color: var(--ink-3);
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+
+.icon-btn:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.icon-btn:active:not(:disabled) {
+  background: var(--press);
+}
+
+.icon-btn:disabled {
+  opacity: 0.45;
+}
+
+.icon-btn[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.icon-btn-sm {
+  width: var(--h-s);
+  height: var(--h-s);
+  border-radius: var(--r-s);
+}
+
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  height: var(--h-2xs);
+  padding: 0 var(--s-2);
+  border-radius: var(--r-xs);
+  background: var(--key-on-fill);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  font-feature-settings: "tnum";
+  letter-spacing: var(--track-key);
+}
+
+.link-btn {
+  color: var(--accent-text);
+  font-weight: var(--weight-medium);
+  border-radius: var(--r-xs);
+}
+
+.link-btn:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ---------- Forms ---------- */
+
+.field {
+  display: block;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: var(--s-2);
+  color: var(--ink-2);
+  font-size: var(--text-s);
+  font-weight: var(--weight-medium);
+}
+
+.field-optional {
+  color: var(--ink-4);
+  font-weight: var(--weight-regular);
+}
+
+.input,
+input:not([type]),
+input[type="email"],
+input[type="password"],
+input[type="text"],
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+textarea.input,
+select.input {
+  display: block;
+  width: 100%;
+  height: var(--h-xl);
+  padding: 0 var(--s-5);
+  border: 0;
+  border-radius: var(--r-m);
+  background: var(--raised);
+  box-shadow: inset 0 0 0 1px var(--line-strong), var(--shadow-1);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-m);
+  letter-spacing: var(--track-read);
+  user-select: text;
+  transition: box-shadow var(--dur-fast) var(--ease);
+}
+
+textarea.input {
+  height: auto;
+  padding: var(--s-4) var(--s-5);
+  resize: vertical;
+  line-height: var(--leading-read);
+}
+
+select.input {
+  appearance: none;
+  padding-right: var(--s-11);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' viewBox='0 0 24 24' stroke='gray' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--s-4) center;
+}
+
+.input::placeholder,
+input::placeholder,
+textarea::placeholder {
+  color: var(--ink-4);
+}
+
+.input:focus,
+input:not([type]):focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="text"]:focus,
+input[type="date"]:focus,
+input[type="time"]:focus,
+input[type="datetime-local"]:focus,
+textarea.input:focus,
+select.input:focus {
+  box-shadow: inset 0 0 0 1px var(--accent), var(--ring);
+}
+
+.password-field {
+  position: relative;
+  display: block;
+}
+
+.password-field input {
+  padding-right: var(--h-l);
+}
+
+.password-field .icon-btn {
+  position: absolute;
+  top: 50%;
+  right: var(--s-3);
+  transform: translateY(-50%);
+}
+
+.code-input {
+  height: var(--h-5xl) !important;
+  border-radius: var(--r-l) !important;
+  font: var(--weight-medium) var(--text-code) / 1 var(--font-mono) !important;
+  letter-spacing: var(--track-code) !important;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+input.plain-input:not([type]) {
+  display: block;
+  width: 100%;
+  height: var(--h-s);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none !important;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-m);
+  line-height: var(--h-s);
+  user-select: text;
+}
+
+.check {
+  appearance: none;
+  flex-shrink: 0;
+  width: var(--h-2xs);
+  height: var(--h-2xs);
+  margin: 0;
+  border-radius: var(--r-xs);
+  background: var(--raised);
+  box-shadow: inset 0 0 0 1.5px var(--line-strong);
+  transition: background-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+
+.check:checked {
+  background: var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E") center/13px no-repeat;
+  box-shadow: none;
+}
+
+.check:focus-visible {
+  box-shadow: inset 0 0 0 1.5px var(--accent), var(--ring);
+}
+
+.problem {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-4) var(--s-5);
+  border-radius: var(--r-m);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: var(--text-s);
+  line-height: var(--leading-snug);
+}
+
+.problem > svg {
+  flex-shrink: 0;
+  margin-top: var(--s-1);
+}
+
+/* ---------- Avatars ---------- */
+
+.avatar {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: var(--weight-semibold);
+  letter-spacing: normal;
+  color: hsl(var(--h) var(--avatar-ink-s) var(--avatar-ink-l));
+  background: hsl(var(--h) var(--avatar-bg-s) var(--avatar-bg-l));
+  box-shadow: inset 0 0 0 0.5px hsl(var(--h) var(--avatar-edge-s) var(--avatar-edge-l) / var(--avatar-edge-a));
+}
+
+/* ---------- App frame ---------- */
+
+.app {
+  display: grid;
+  grid-template-columns: var(--w-sidebar) minmax(0, 1fr);
+  height: 100%;
+  background: var(--sidebar);
+}
+
+/* The list and the email sit together on one raised panel. */
+.main-panel {
+  display: grid;
+  grid-template-columns: var(--w-list) minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  margin: var(--s-3) var(--s-3) var(--s-3) 0;
+  overflow: hidden;
+  border-radius: var(--r-xl);
+  background: var(--canvas);
+  box-shadow: var(--shadow-panel);
+}
+
+.pane-reader {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--reader-bg);
+}
+
+.drag {
+  -webkit-app-region: drag;
+}
+
+/* ---------- Sidebar ---------- */
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--sidebar);
+}
+
+.sidebar-top {
+  flex-shrink: 0;
+  height: var(--h-3xl);
+}
+
+.settings-nav-top {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.settings-back {
+  margin-bottom: var(--s-4);
+  font-weight: var(--weight-medium);
+}
+
+/* Beside the window buttons, and lined up with them. */
+/* The window's own buttons sit on the left, so the sidebar button goes to the right. */
+.sidebar-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  /* Centred on the window's own buttons, whose middle is 20px down: a 26px button 7px from
+     the top. */
+  padding: calc(var(--s-3) + var(--s-1) / 2) var(--s-6) 0 var(--w-rail);
+}
+
+/* Back, forward and the sidebar button together at the far right of the sidebar, the
+   sidebar button over the edge it folds. */
+.sidebar-head .nav-arrows {
+  margin-left: auto;
+}
+
+/* In a browser there are no window buttons to make room for: the logo sits there instead,
+   level with the sidebar button, and both line up with the account switcher below. */
+.sidebar-head.sidebar-head-web {
+  align-items: center;
+  padding: 0 var(--s-6) 0 calc(var(--s-8) + var(--s-1));
+}
+
+.sidebar-head-web .sidebar-brand {
+  margin-right: auto;
+}
+
+.sidebar-head-web .nav-arrows {
+  margin-left: 0;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+}
+
+.sidebar-brand-name {
+  color: var(--ink);
+  font-size: var(--text-m);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-title);
+}
+
+.app[data-rail] .sidebar-brand {
+  display: none;
+}
+
+.compose-btn {
+  margin: 0 var(--s-6) var(--s-6);
+  width: calc(100% - var(--s-10));
+  justify-content: flex-start;
+  padding: 0 var(--s-4) 0 var(--s-5);
+}
+
+.compose-btn .kbd {
+  margin-left: auto;
+}
+
+/* Beside the words of a primary button, as on New message. */
+.quick-reply .kbd {
+  margin-left: var(--s-2);
+}
+
+.nav-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 var(--s-4) var(--s-4);
+}
+
+.nav-account {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  height: var(--h-s);
+  padding: 0 var(--s-4) 0 var(--s-3);
+  border-radius: var(--r-s);
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  text-align: left;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+
+.nav-account:hover {
+  background: var(--hover);
+  color: var(--ink-2);
+}
+
+.nav-item-moving {
+  position: relative;
+  z-index: 1;
+  background: var(--raised);
+  box-shadow: var(--shadow-2);
+  color: var(--ink);
+  cursor: grabbing;
+}
+
+/* The others slide out of the way of the one being dragged, which stays with the pointer. */
+.nav-dragging .nav-item {
+  transition: transform var(--dur-fast) var(--ease);
+}
+
+.nav-dragging .nav-item-moving {
+  transition: none;
+}
+
+.nav-dragging .nav-item:not(.nav-item-moving):not([aria-current="true"]):hover {
+  background: none;
+}
+
+.nav-arrows {
+  display: flex;
+  gap: var(--s-2);
+}
+
+/* Taken off the sidebar: shown only when asked for, and quieter, so they read as put away. */
+.nav-item-hidden,
+.nav-hidden-toggle {
+  color: var(--ink-3);
+}
+
+.nav-hidden-toggle {
+  font-size: var(--text-s);
+}
+
+.nav-hidden-arrow {
+  transition: transform var(--dur-fast) var(--ease);
+}
+
+.nav-hidden-toggle[aria-expanded="true"] .nav-hidden-arrow {
+  transform: rotate(180deg);
+}
+
+/* More…: things used now and then, folded away under the main views. */
+.nav-more-toggle {
+  color: var(--ink-2);
+}
+
+.nav-more-toggle[aria-expanded="true"] .nav-hidden-arrow {
+  transform: rotate(180deg);
+}
+
+.app[data-rail] .nav-more-toggle .nav-hidden-arrow {
+  display: none;
+}
+
+/* The drag handle floats over the row's end instead of taking room, so every count
+   lines up at the same edge, whether the row can be dragged or not. */
+.nav-item .nav-grip {
+  position: absolute;
+  top: 50%;
+  right: var(--s-4);
+  opacity: 0;
+  cursor: grab;
+  transform: translateY(-50%);
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+.nav-item:hover .nav-grip,
+.nav-item-moving .nav-grip {
+  opacity: 1;
+}
+
+/* While the handle shows, the count it would cover steps aside. */
+.nav-item:has(.nav-grip):hover .nav-count,
+.nav-item-moving .nav-count {
+  opacity: 0;
+}
+
+.nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  width: 100%;
+  height: var(--h-xl);
+  margin-bottom: var(--s-1);
+  padding: 0 var(--s-4) 0 var(--s-5);
+  border-radius: var(--r-m);
+  color: var(--ink-2);
+  font-size: var(--text-base);
+  text-align: left;
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.nav-item svg {
+  flex-shrink: 0;
+  color: var(--ink-3);
+  transition: color var(--dur-fast) var(--ease);
+}
+
+.nav-item:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.nav-item[aria-current="true"] {
+  background: var(--press);
+  color: var(--ink);
+  font-weight: var(--weight-medium);
+}
+
+.nav-item[aria-current="true"] svg {
+  color: var(--accent-text);
+}
+
+.nav-count {
+  /* As wide as the round unread badge, so plain numbers line up with it. */
+  min-width: var(--s-9);
+  margin-left: auto;
+  text-align: center;
+  transition: opacity var(--dur-fast) var(--ease);
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Unread counts sit in a soft pill, so they read as a number to act on. Draft counts stay plain. */
+.nav-count-unread {
+  display: inline-grid;
+  place-items: center;
+  min-width: var(--s-9);
+  height: var(--s-9);
+  padding: 0 var(--s-3);
+  border-radius: var(--r-full);
+  background: var(--accent-soft-2);
+  color: var(--accent-text);
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+}
+
+.nav-label-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding-right: var(--s-3);
+}
+
+.nav-label {
+  padding: var(--s-7) var(--s-5) var(--s-3);
+  color: var(--ink-3);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-key);
+  text-transform: uppercase;
+}
+
+.nav-gap {
+  height: var(--s-4);
+}
+
+.sidebar-foot {
+  flex-shrink: 0;
+  padding: var(--s-4);
+  border-top: 1px solid var(--line);
+}
+
+.sidebar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.nav-key {
+  margin-left: auto;
+  color: var(--ink-4);
+  font-size: var(--text-xs);
+}
+
+.profile-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  width: 100%;
+  padding: var(--s-3) var(--s-3);
+  border-radius: var(--r-m);
+  text-align: left;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+
+.profile-btn:hover,
+.profile-btn[aria-expanded="true"] {
+  background: var(--hover);
+}
+
+/* ---------- Menus and tooltips ---------- */
+
+.menu {
+  position: fixed;
+  z-index: var(--z-menu);
+  min-width: var(--w-menu);
+  max-height: min(var(--h-menu), calc(100vh - var(--s-10)));
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: var(--s-2);
+  border-radius: var(--r-l);
+  background: var(--raised);
+  box-shadow: var(--shadow-3);
+  animation: pop var(--dur-fast) var(--ease);
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  width: 100%;
+  height: var(--h-m);
+  padding: 0 var(--s-4);
+  border-radius: var(--r-s);
+  color: var(--ink);
+  text-align: left;
+}
+
+.menu-item svg {
+  flex-shrink: 0;
+  color: var(--ink-3);
+}
+
+/* The same soft highlight as hovering over an email. */
+.menu-item:hover,
+.menu-item:focus-visible {
+  background: var(--hover);
+  box-shadow: none;
+}
+
+.menu-item:hover svg,
+.menu-item:focus-visible svg {
+  color: var(--ink);
+}
+
+/* Greyed while what it starts is already running. */
+.menu-item:disabled {
+  opacity: 0.5;
+}
+
+.menu-item:disabled:hover {
+  background: none;
+}
+
+.menu-item-danger {
+  color: var(--danger);
+}
+
+.menu-item-danger svg {
+  color: var(--danger);
+}
+
+.menu-item-danger:hover svg,
+.menu-item-danger:focus-visible svg {
+  color: var(--danger);
+}
+
+.menu-sep {
+  height: 1px;
+  margin: var(--s-2) var(--s-3);
+  background: var(--line);
+}
+
+.menu-title {
+  padding: var(--s-2) var(--s-4) var(--s-2);
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+
+.tooltip {
+  position: fixed;
+  z-index: var(--z-tooltip);
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  max-width: var(--w-tooltip);
+  padding: var(--s-2) var(--s-4);
+  border-radius: var(--r-s);
+  background: var(--tooltip-bg);
+  color: var(--tooltip-ink);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  box-shadow: var(--shadow-2);
+  pointer-events: none;
+  animation: fade var(--dur-fast) var(--ease);
+}
+
+.tooltip-now {
+  animation: none;
+}
+
+.tooltip .kbd {
+  background: var(--tooltip-key);
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(-2px);
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ---------- Conversation list ---------- */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--canvas);
+  border-right: 1px solid var(--line);
+}
+
+.list-head {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-9) var(--s-7) var(--s-6) var(--s-8);
+}
+
+.list-title {
+  font-size: var(--text-l);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-display);
+}
+
+.list-sub {
+  flex-shrink: 0;
+  color: var(--ink-3);
+  font-size: var(--text-s);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.list-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 0 var(--s-6);
+  /* The list is long, so its scroll bar always shows. These two let the styles below apply. */
+  scrollbar-width: auto;
+  scrollbar-color: auto;
+}
+
+.list-scroll::-webkit-scrollbar-thumb {
+  border-width: 2px;
+  background-color: var(--ink-4);
+}
+
+.list-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: var(--ink-3);
+}
+
+.day-label {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: var(--s-5) calc(var(--s-5) + var(--s-3)) var(--s-2);
+  background: linear-gradient(var(--canvas) 72%, transparent);
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.thread {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--avatar-m) minmax(0, 1fr);
+  gap: var(--s-6);
+  width: 100%;
+  /* Reaches the panel's edge for the unread bar. The highlight sits a little inside it. */
+  padding: var(--s-6) calc(var(--s-5) + var(--s-3));
+  text-align: left;
+  isolation: isolate;
+}
+
+.thread::before {
+  content: "";
+  position: absolute;
+  inset: 0 var(--s-3);
+  z-index: var(--z-behind);
+  border-radius: var(--r-ml);
+  background: var(--row-fill);
+  transition: background-color var(--dur-fast) var(--ease);
+}
+
+/* A hairline between rows, which steps aside for a highlighted row. */
+.thread::after {
+  content: "";
+  position: absolute;
+  right: calc(var(--s-5) + var(--s-3));
+  bottom: 0;
+  left: calc(var(--s-5) + var(--s-3));
+  height: 1px;
+  background: var(--line);
+}
+
+.thread:last-child::after,
+.thread:hover::after,
+.thread[aria-current="true"]::after,
+.thread[data-menu-open]::after,
+.thread:has(+ .thread:hover)::after,
+.thread:has(+ .thread[aria-current="true"])::after {
+  opacity: 0;
+}
+
+/* Unread stands out a little in the list; hover and selection still show over it. The
+   menu bar panel lists only unread mail, so it has no need. */
+.thread-unread:not(.panel *) {
+  --row-fill: var(--accent-faint);
+}
+
+.thread:hover,
+.thread[data-menu-open] {
+  --row-fill: var(--hover);
+}
+
+.thread[aria-current="true"] {
+  --row-fill: var(--selected);
+}
+
+.thread-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  min-width: 0;
+}
+
+.thread-from {
+  flex: 1;
+  min-width: 0;
+  color: var(--ink-2);
+  font-size: var(--text-s);
+  font-weight: var(--weight-regular);
+}
+
+.thread-time {
+  flex-shrink: 0;
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.thread-subject {
+  flex: 1;
+  min-width: 0;
+  margin-top: var(--s-1);
+  color: var(--ink-2);
+  font-size: var(--text-base);
+}
+
+.thread-snippet {
+  margin-top: var(--s-1);
+  color: var(--ink-3);
+  font-size: var(--text-s);
+}
+
+.thread-unread .thread-from {
+  color: var(--ink);
+  font-weight: var(--weight-bold);
+}
+
+.thread-unread .thread-subject {
+  color: var(--ink);
+  font-weight: var(--weight-semibold);
+}
+
+.thread-unread .thread-snippet {
+  color: var(--ink-2);
+}
+
+.thread-unread .thread-time {
+  color: var(--ink-2);
+}
+
+/* Unread rows carry a bar down the left. */
+.unread-bar {
+  position: absolute;
+  top: var(--s-6);
+  bottom: var(--s-6);
+  left: 0;
+  width: var(--w-bar);
+  border-radius: 0 var(--r-full) var(--r-full) 0;
+  background: var(--accent);
+}
+
+/* The time gives way to quick actions when the pointer is over a row. */
+.thread-quick {
+  display: none;
+  flex-shrink: 0;
+  /* Lining up with the words by baseline would make the line taller and nudge the rows below. */
+  align-self: center;
+  align-items: center;
+  gap: var(--s-1);
+  margin: calc(var(--s-2) * -1) calc(var(--s-2) * -1) calc(var(--s-2) * -1) 0;
+}
+
+.thread:hover .thread-quick {
+  display: inline-flex;
+}
+
+.thread:hover:has(.thread-quick) .thread-time {
+  display: none;
+}
+
+.list-picking .thread-quick {
+  display: none !important;
+}
+
+.list-picking .thread:hover .thread-time {
+  display: inline;
+}
+
+.quick-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--h-xs);
+  height: var(--h-xs);
+  border-radius: var(--r-xs);
+  color: var(--ink-3);
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.quick-action:hover {
+  background: var(--press);
+  color: var(--ink);
+}
+
+.thread-count {
+  flex-shrink: 0;
+  align-self: center;
+  min-width: var(--h-2xs);
+  height: var(--h-2xs);
+  padding: 0 var(--s-2);
+  border-radius: var(--r-full);
+  background: var(--press);
+  color: var(--ink-2);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  line-height: var(--h-2xs);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.thread-marks {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--s-2);
+  align-self: center;
+  color: var(--ink-3);
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: var(--w-empty);
+  padding: var(--s-10);
+  color: var(--ink-3);
+  text-align: center;
+}
+
+.empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--h-3xl);
+  height: var(--h-3xl);
+  margin-bottom: var(--s-6);
+  border-radius: var(--r-l);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink-3);
+}
+
+.empty-title {
+  color: var(--ink);
+  font-size: var(--text-m);
+  font-weight: var(--weight-semibold);
+}
+
+.empty-text {
+  max-width: var(--w-text-narrow);
+  margin-top: var(--s-1);
+  font-size: var(--text-s);
+}
+
+.empty-keys {
+  display: flex;
+  gap: var(--s-7);
+  margin-top: var(--s-7);
+  font-size: var(--text-s);
+}
+
+.empty-keys .kbd {
+  margin-right: var(--s-2);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink-2);
+}
+
+/* ---------- Reader ---------- */
+
+.reader-bar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  height: var(--h-5xl);
+  padding: 0 var(--s-8);
+  background: var(--reader-bg);
+  background: color-mix(in srgb, var(--reader-bg) 86%, transparent);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  border-bottom: 1px solid var(--line);
+}
+
+.bar-sep {
+  flex-shrink: 0;
+  width: 1px;
+  height: var(--h-2xs);
+  margin: 0 var(--s-3);
+  background: var(--line-strong);
+}
+
+.reader-body {
+  width: 100%;
+  max-width: var(--w-reader);
+  margin: 0 auto;
+  padding: var(--s-9) var(--s-10) var(--s-11);
+}
+
+.reader-subject {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--track-display);
+}
+
+/* The subject, with the AI button and the team chip at its end. */
+.reader-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-5);
+}
+
+.reader-head .reader-subject {
+  flex: 1;
+  min-width: 0;
+}
+
+.reader-head-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.card {
+  margin-bottom: var(--s-5);
+  overflow: hidden;
+  border-radius: var(--r-xl);
+  background: var(--raised);
+  box-shadow: var(--shadow-card);
+}
+
+/* Attach is a real button next to Send, so it's easy to find. */
+.composer-attach {
+  cursor: pointer;
+}
+
+/* Clear of the sticky toolbar when the view jumps to an email. */
+.card-slot {
+  scroll-margin-top: calc(var(--h-5xl) + var(--s-4));
+}
+
+/* "8 earlier emails": the middle of a long conversation, folded until asked for. */
+.card-fold {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  margin-bottom: var(--s-5);
+  padding: var(--s-3) var(--s-6);
+  border: 0;
+  border-radius: var(--r-xl);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--text-s);
+  cursor: pointer;
+}
+
+.card-fold:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.card-fold-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: var(--s-8);
+  height: var(--s-8);
+  padding: 0 var(--s-2);
+  border-radius: var(--r-full);
+  background: var(--sunken);
+  color: var(--ink);
+  font-weight: var(--weight-medium);
+}
+
+.card-collapsed {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  width: 100%;
+  height: var(--h-3xl);
+  padding: 0 var(--s-7) 0 var(--s-6);
+  text-align: left;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+
+.card-collapsed:hover {
+  background: var(--hover);
+}
+
+.card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-6);
+  padding: var(--s-8) var(--s-7) var(--s-6) var(--s-8);
+}
+
+.card-sender {
+  color: var(--ink);
+  font-size: var(--text-m);
+  font-weight: var(--weight-medium);
+}
+
+.card-address {
+  color: var(--ink-3);
+  font-size: var(--text-s);
+  font-weight: var(--weight-regular);
+}
+
+.copy-address {
+  display: inline;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.copy-address:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.card-to {
+  margin-top: var(--s-1);
+  color: var(--ink-3);
+  font-size: var(--text-s);
+}
+
+.card-date {
+  flex-shrink: 0;
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  line-height: var(--h-s);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The date gives way to the message's actions when the pointer is over it. */
+.card-actions {
+  display: none;
+  flex-shrink: 0;
+}
+
+.card-head:hover .card-actions,
+.card-head:focus-within .card-actions {
+  display: flex;
+}
+
+.card-head:hover .card-date,
+.card-head:focus-within .card-date {
+  display: none;
+}
+
+.mail-frame {
+  display: block;
+  color-scheme: light;
+  width: calc(100% - var(--s-8));
+  margin: 0 var(--s-4) var(--s-4);
+  border: 0;
+  border-radius: var(--r-m);
+  background: var(--mail-paper);
+}
+
+/* A plain email in the app's dark colours: no white page behind it. */
+.mail-frame-dark {
+  color-scheme: dark;
+  background: transparent;
+}
+
+.mail-text {
+  margin: 0;
+  padding: var(--s-1) var(--s-8) var(--s-7) var(--inset-text);
+  color: var(--ink);
+  font: var(--text-read) / var(--leading-read) var(--font-ui);
+  letter-spacing: var(--track-read);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.pictures-note {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  margin: 0 var(--s-4) var(--s-4);
+  padding: var(--s-3) var(--s-3) var(--s-3) var(--s-5);
+  border-radius: var(--r-m);
+  background: var(--sunken);
+  color: var(--ink-3);
+  font-size: var(--text-s);
+}
+
+.pictures-note svg {
+  flex-shrink: 0;
+}
+
+.quote-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--h-m);
+  height: var(--h-2xs);
+  margin: 0 0 var(--s-6) var(--inset-text);
+  border-radius: var(--r-full);
+  background: var(--press);
+  color: var(--ink-2);
+  transition: background-color var(--dur-fast) var(--ease);
+}
+
+.quote-toggle:hover {
+  background: var(--line-strong);
+}
+
+.quote-toggle-frame {
+  margin-left: var(--s-8);
+}
+
+.files {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--w-file), 1fr));
+  gap: var(--s-4);
+  margin: 0;
+  padding: var(--s-1) var(--s-6) var(--s-7);
+  list-style: none;
+}
+
+.file {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  min-width: 0;
+  padding: var(--s-4) var(--s-4) var(--s-4) var(--s-4);
+  border-radius: var(--r-ml);
+  background: var(--canvas);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+
+.file-icon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--h-l);
+  height: var(--h-l);
+  border-radius: var(--r-m);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.file-name {
+  font-size: var(--text-s);
+  font-weight: var(--weight-medium);
+}
+
+.file-meta {
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+
+/* At least as tall as the pane, so the reply button can sit at its bottom. */
+.reader-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/* Always in the same place at the bottom of the pane, however long the conversation is. */
+.quick-reply-row {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  max-width: var(--w-reader);
+  margin-top: auto;
+  margin-inline: auto;
+  padding: 0 var(--s-10) var(--s-8);
+  pointer-events: none;
+}
+
+.quick-reply {
+  pointer-events: auto;
+}
+
+/* An email exactly as it came from the server. */
+.original-facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--s-3) var(--s-8);
+  margin: 0 0 var(--s-8);
+  font-size: var(--text-s);
+}
+
+.original-facts dt {
+  color: var(--ink-3);
+}
+
+.original-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.original-check {
+  font-weight: var(--weight-semibold);
+}
+
+.original-pass {
+  color: var(--success);
+}
+
+.original-fail {
+  color: var(--danger);
+}
+
+.original-waiting {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  font-size: var(--text-s);
+}
+
+.original-note {
+  margin: 0 0 var(--s-4);
+  font-size: var(--text-s);
+}
+
+.original-text {
+  margin: 0;
+  padding: var(--s-6) var(--s-8);
+  border-radius: var(--r-m);
+  background: var(--sunken);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-body);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.reader-waiting {
+  max-width: var(--w-reader);
+  margin: 0 auto;
+  padding: var(--s-10) var(--s-10);
+}
+
+/* ---------- Composer ---------- */
+
+.composer {
+  position: fixed;
+  right: var(--s-8);
+  bottom: var(--s-8);
+  z-index: var(--z-composer);
+  display: flex;
+  flex-direction: column;
+  width: min(var(--w-composer), calc(100vw - 2 * var(--s-8)));
+  height: min(var(--h-composer), calc(100vh - 2 * var(--s-8)));
+  overflow: hidden;
+  border-radius: var(--r-xl);
+  background: var(--raised);
+  box-shadow: var(--shadow-3);
+  animation: rise var(--dur-base) var(--ease);
+  transition:
+    width var(--dur-base) var(--ease),
+    height var(--dur-base) var(--ease),
+    right var(--dur-base) var(--ease),
+    bottom var(--dur-base) var(--ease);
+}
+
+/* Nearly the whole window, for a long message. */
+.composer-large {
+  right: var(--s-11);
+  bottom: var(--s-11);
+  width: calc(100vw - 2 * var(--s-11));
+  height: calc(100vh - 2 * var(--s-11));
+}
+
+.composer-dim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-composer);
+  background: var(--scrim);
+  animation: fade var(--dur-base) var(--ease);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+}
+
+.composer-head {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--h-2xl);
+  padding: 0 var(--s-3) 0 var(--s-7);
+  border-bottom: 1px solid var(--line);
+}
+
+.composer-title {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-title);
+}
+
+.composer-sender {
+  margin-left: var(--s-3);
+  color: var(--ink-2);
+  font-size: var(--text-s);
+}
+
+.saved-note {
+  margin-left: var(--s-4);
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  animation: fade var(--dur-base) var(--ease);
+}
+
+.composer-row {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-start;
+  gap: var(--s-4);
+  /* Row height is the content height plus this padding, so one line sits exactly in the middle. */
+  padding: var(--s-3) var(--s-4) var(--s-3) var(--s-7);
+  border-bottom: 1px solid var(--line);
+}
+
+.composer-label {
+  flex-shrink: 0;
+  width: var(--w-composer-label);
+  color: var(--ink-3);
+  font-size: var(--text-s);
+  line-height: var(--h-s);
+}
+
+.chips {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+  min-height: var(--h-s);
+}
+
+.chips input.plain-input {
+  flex: 1;
+  width: auto;
+  min-width: var(--w-chip-input);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  max-width: 100%;
+  height: var(--h-s);
+  padding: 0 var(--s-1) 0 var(--s-1);
+  border-radius: var(--r-full);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-size: var(--text-s);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chip-x {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--h-2xs);
+  height: var(--h-2xs);
+  border-radius: 50%;
+  color: var(--ink-3);
+}
+
+.chip-x:hover {
+  background: var(--press);
+  color: var(--ink);
+}
+
+.chip-bad {
+  background: var(--danger-soft);
+  box-shadow: inset 0 0 0 1px var(--danger);
+  color: var(--danger);
+}
+
+.suggest {
+  position: absolute;
+  top: calc(100% + var(--s-1));
+  left: var(--inset-suggest);
+  z-index: var(--z-popover);
+  width: var(--w-suggest);
+  margin: 0;
+  padding: var(--s-2);
+  list-style: none;
+  border-radius: var(--r-l);
+  background: var(--raised);
+  box-shadow: var(--shadow-3);
+  animation: pop var(--dur-fast) var(--ease);
+}
+
+.suggest-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  width: 100%;
+  height: var(--h-2xl);
+  padding: 0 var(--s-4);
+  border-radius: var(--r-s);
+  text-align: left;
+}
+
+.suggest-item[aria-selected="true"] {
+  background: var(--accent-soft);
+}
+
+.composer-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.editor {
+  min-height: var(--h-editor);
+  padding: var(--s-6) var(--s-7);
+  outline: none;
+  font-size: var(--text-read);
+  line-height: var(--leading-read);
+  letter-spacing: var(--track-read);
+  overflow-wrap: anywhere;
+}
+
+.editor p {
+  margin: 0;
+}
+
+.editor ul,
+.editor ol {
+  margin: 0;
+  padding-left: var(--s-10);
+}
+
+.editor ul {
+  list-style: disc;
+}
+
+.editor ol {
+  list-style: decimal;
+}
+
+.editor li p {
+  margin: 0;
+}
+
+.editor blockquote {
+  margin: var(--s-3) 0;
+  padding-left: var(--s-6);
+  border-left: 2px solid var(--line-strong);
+  color: var(--ink-2);
+}
+
+.editor a {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.editor img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--r-s);
+}
+
+.editor img.ProseMirror-selectednode {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* While AI writes into an empty message, it says so where the words will go. */
+.editor-writing {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-6) var(--s-7) 0;
+  color: var(--ink-3);
+  font-size: var(--text-read);
+}
+
+/* "..." that fills in one dot at a time, in the text's own font and colour. */
+.typing-dots > span {
+  animation: typing-dot 1.2s var(--ease) infinite;
+}
+
+.typing-dots > span:nth-child(2) {
+  animation-delay: var(--dur-base);
+}
+
+.typing-dots > span:nth-child(3) {
+  animation-delay: calc(var(--dur-base) * 2);
+}
+
+@keyframes typing-dot {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .typing-dots > span {
+    animation: none;
+  }
+}
+
+.editor-busy .editor {
+  padding-top: 0;
+}
+
+.editor-busy .editor p.is-editor-empty:first-child::before {
+  content: none;
+}
+
+.editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--ink-4);
+  pointer-events: none;
+}
+
+.ProseMirror {
+  outline: none;
+}
+
+.ProseMirror-focused {
+  outline: none;
+}
+
+.earlier {
+  margin: 0 var(--s-7) var(--s-6);
+}
+
+.earlier-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: var(--h-xs);
+  padding: 0 var(--s-4) 0 var(--s-3);
+  border-radius: var(--r-full);
+  background: var(--press);
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.earlier-toggle:hover {
+  background: var(--line-strong);
+}
+
+.earlier-body {
+  margin-top: var(--s-4);
+  overflow: hidden;
+  border-radius: var(--r-m);
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.earlier-body .mail-frame {
+  width: 100%;
+  margin: 0;
+}
+
+.earlier-body .mail-text {
+  padding: var(--s-5) var(--s-6);
+  font-size: var(--text-base);
+}
+
+.composer-files {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  max-height: var(--h-files);
+  margin: 0;
+  padding: var(--s-4) var(--s-7);
+  overflow-y: auto;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+
+.file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-3);
+  max-width: var(--w-file-chip);
+  height: var(--h-l);
+  padding: 0 var(--s-2) 0 var(--s-4);
+  border-radius: var(--r-m);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-size: var(--text-s);
+}
+
+.file-chip svg {
+  flex-shrink: 0;
+  color: var(--ink-3);
+}
+
+.composer-problem {
+  flex-shrink: 0;
+  margin: 0 var(--s-6) var(--s-4);
+}
+
+.toolbar {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-1);
+  padding: var(--s-2) var(--s-4);
+  border-top: 1px solid var(--line);
+}
+
+.tool {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-1);
+  min-width: var(--h-s);
+  height: var(--h-s);
+  padding: 0 var(--s-2);
+  border-radius: var(--r-s);
+  color: var(--ink-2);
+  font-size: var(--text-s);
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.tool:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.tool:active {
+  background: var(--press);
+}
+
+.tool[aria-pressed="true"],
+.tool[aria-expanded="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.tool-sep {
+  flex-shrink: 0;
+  width: 1px;
+  height: var(--h-2xs);
+  margin: 0 var(--s-2);
+  background: var(--line);
+}
+
+.link-row {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-5) var(--s-3) var(--s-6);
+  border-top: 1px solid var(--line);
+}
+
+.link-row svg {
+  flex-shrink: 0;
+  color: var(--ink-3);
+}
+
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(6, var(--h-xs));
+  gap: var(--s-2);
+  padding: var(--s-2);
+}
+
+.swatch {
+  width: var(--h-xs);
+  height: var(--h-xs);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  transition: transform var(--dur-fast) var(--ease);
+}
+
+.swatch:hover {
+  transform: scale(1.14);
+}
+
+.composer-foot {
+  display: flex;
+  flex-shrink: 0;
+  /* In a narrow window the small tools go to a second row instead of past the edge. */
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-4) var(--s-4) var(--s-4) var(--s-5);
+  border-top: 1px solid var(--line);
+  background: var(--raised);
+}
+
+/* Send stands a little apart from the helpers next to it. */
+.composer-foot > .btn-primary {
+  margin-right: var(--s-2);
+}
+
+.composer-drop::after {
+  content: "Drop files to attach";
+  position: absolute;
+  inset: var(--s-3);
+  z-index: var(--z-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px dashed var(--accent);
+  border-radius: var(--r-ml);
+  background: var(--raised);
+  background: color-mix(in srgb, var(--raised) 86%, var(--accent));
+  color: var(--accent-text);
+  font-size: var(--text-read);
+  font-weight: var(--weight-medium);
+  pointer-events: none;
+}
+
+/* ---------- Dialogs ---------- */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-10);
+  background: var(--scrim);
+  animation: fade var(--dur-base) var(--ease);
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  border-radius: var(--r-xl);
+  background: var(--raised);
+  box-shadow: var(--shadow-3);
+  animation: dialog var(--dur-base) var(--ease);
+}
+
+/* Over Settings, a dialog centres on the page beside the settings list, not the whole window. */
+body:has(.settings) .scrim {
+  padding-left: calc(var(--w-settings-nav) + var(--s-10));
+}
+
+@keyframes dialog {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+
+.dialog-head {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-6);
+  padding: var(--s-8) var(--s-6) var(--s-6) var(--s-9);
+}
+
+.dialog-title {
+  font-size: var(--text-l);
+  font-weight: var(--weight-bold);
+}
+
+.dialog-sub {
+  margin-top: var(--s-1);
+  color: var(--ink-3);
+  font-size: var(--text-s);
+}
+
+.dialog-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--s-1) var(--s-9) var(--s-8);
+}
+
+.dialog-foot {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--s-4);
+  padding: var(--s-6) var(--s-8);
+  border-top: 1px solid var(--line);
+  background: var(--sunken);
+}
+
+.section-title {
+  margin-bottom: var(--s-3);
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+.group {
+  overflow: hidden;
+  border-radius: var(--r-l);
+  background: var(--canvas);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.group-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  min-height: var(--h-3xl);
+  padding: var(--s-4) var(--s-4) var(--s-4) var(--s-6);
+}
+
+.group-row + .group-row {
+  border-top: 1px solid var(--line);
+}
+
+/* Shows what the settings below it do. It looks real, but it's only a picture. */
+.settings-preview {
+  background: var(--sunken);
+  pointer-events: none;
+}
+
+.settings-preview-center {
+  display: flex;
+  justify-content: center;
+  padding: var(--s-6);
+}
+
+.settings-preview-list {
+  width: min(var(--w-list), 100%);
+  overflow: hidden;
+  border-radius: var(--r-l);
+  background: var(--canvas);
+  box-shadow: var(--shadow-2);
+}
+
+.settings-preview + .group-row {
+  border-top: 1px solid var(--line);
+}
+
+textarea.input.template-body {
+  resize: none;
+}
+
+.team-row {
+  width: 100%;
+  border-radius: inherit;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.team-row:hover {
+  background: var(--hover);
+}
+
+.group-icon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--h-s);
+  height: var(--h-s);
+  border-radius: var(--r-m);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink-2);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  height: var(--h-2xs);
+  margin-left: var(--s-3);
+  padding: 0 var(--s-3);
+  border-radius: var(--r-full);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+}
+
+/* Costs nothing. */
+.pill-free {
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+  color: var(--success);
+}
+
+/* Something new and still being finished: "BETA" in soft yellow. */
+.pill-new {
+  background: var(--new-soft);
+  color: var(--new-text);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+}
+
+/* A word at the end of a sidebar row. The rail shows icons only, so not there. */
+.nav-tag {
+  flex-shrink: 0;
+  margin-left: var(--s-3);
+}
+
+/* Beside the Ask AI title, where the header's own gap already spaces it. */
+.chat-beta {
+  flex-shrink: 0;
+  margin-left: 0;
+}
+
+.app[data-rail] .nav-tag {
+  display: none;
+}
+
+/* An email opened from an answer about search results. */
+.back-to-answer {
+  align-self: flex-start;
+  margin-bottom: var(--s-4);
+}
+
+/* Ask AI asked from an email: who it's about, with a way back to everything. */
+/* What to expect of the AI just picked: two short lines above the box. */
+.chat-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-4);
+  width: 100%;
+  max-width: var(--w-chat);
+  margin: 0 auto var(--s-4);
+  padding: var(--s-4) var(--s-3) var(--s-4) var(--s-6);
+  border-radius: var(--r-l);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  color: var(--ink-2);
+  font-size: var(--text-s);
+  line-height: var(--leading-body);
+}
+
+.chat-note strong {
+  color: var(--ink);
+  font-weight: var(--weight-semibold);
+}
+
+.chat-note > .icon:first-child,
+.chat-note > svg:first-child {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.chat-about {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: calc(100% - 2 * var(--s-6));
+  max-width: calc(var(--w-chat) - 2 * var(--s-6));
+  margin: 0 auto calc(-1 * var(--s-6));
+  padding: var(--s-2) var(--s-2) calc(var(--s-2) + var(--s-6)) var(--s-6);
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  color: var(--ink-2);
+  font-size: var(--text-s);
+}
+
+/* A sign-in code from the email, copied in one click. */
+.code-chip {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--s-2);
+  height: var(--h-2xs);
+  margin-left: var(--s-3);
+  padding: 0 var(--s-3);
+  border: none;
+  border-radius: var(--r-full);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font: inherit;
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+}
+
+.code-chip:hover {
+  filter: brightness(0.96);
+}
+
+/* ---------- Onboarding ---------- */
+
+.welcome {
+  position: relative;
+  display: flex;
+  min-height: 100%;
+  height: 100%;
+  overflow-y: auto;
+  background:
+    var(--welcome-glow),
+    var(--sidebar);
+}
+
+.welcome-drag {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--h-3xl);
+}
+
+.welcome-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: min-content;
+  margin: auto;
+  padding: var(--s-13) var(--s-10);
+}
+
+.welcome-card {
+  width: 100%;
+  max-width: var(--w-card);
+  padding: var(--s-10) var(--s-10) var(--s-10);
+  border-radius: var(--r-2xl);
+  background: var(--raised);
+  box-shadow: 0 0 0 1px var(--line), var(--shadow-2);
+  animation: dialog var(--dur-base) var(--ease);
+}
+
+.welcome-logo {
+  margin-bottom: var(--s-8);
+}
+
+/* A provider's logo on a white tile the size of the app's own icon. */
+.provider-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--h-2xl);
+  height: var(--h-2xl);
+  border-radius: var(--r-l);
+  background: var(--logo-tile);
+  box-shadow: 0 0 0 1px var(--line), var(--shadow-1);
+}
+
+.provider-logo img {
+  width: 60%;
+  height: 60%;
+  object-fit: contain;
+}
+
+.provider-logo[data-provider="icloud"] img {
+  width: 50%;
+  height: 50%;
+}
+
+.welcome-title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--track-display);
+}
+
+.welcome-text {
+  margin-top: var(--s-3);
+  color: var(--ink-3);
+  font-size: var(--text-m);
+  line-height: var(--leading-body);
+}
+
+.welcome-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--s-4) var(--s-8);
+  margin-top: var(--s-8);
+  color: var(--ink-3);
+  font-size: var(--text-s);
+  text-align: center;
+}
+
+.stack > * + * {
+  margin-top: var(--s-6);
+}
+
+.stack-l > * + * {
+  margin-top: var(--s-8);
+}
+
+.or {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  color: var(--ink-4);
+  font-size: var(--text-s);
+}
+
+.or::before,
+.or::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.disclosure {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--ink-2);
+  font-size: var(--text-s);
+  font-weight: var(--weight-medium);
+  border-radius: var(--r-xs);
+}
+
+.disclosure:hover {
+  color: var(--ink);
+}
+
+.tip {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-4);
+  padding: var(--s-4) var(--s-5);
+  border-radius: var(--r-m);
+  background: var(--sunken);
+  color: var(--ink-2);
+  font-size: var(--text-s);
+  line-height: var(--leading-body);
+}
+
+.tip svg {
+  flex-shrink: 0;
+  margin-top: var(--s-1);
+  color: var(--ink-3);
+}
+
+.key-box {
+  padding: var(--s-7);
+  border-radius: var(--r-l);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font: var(--weight-medium) var(--text-read) / 1.7 var(--font-mono);
+  letter-spacing: var(--track-key);
+  text-align: center;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+.number-box {
+  padding: var(--s-8) 0;
+  border-radius: var(--r-l);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font: var(--weight-medium) var(--text-number) / 1 var(--font-mono);
+  letter-spacing: var(--track-code);
+  text-indent: var(--track-code);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+}
+
+/* ---------- Toast ---------- */
+
+.toast {
+  position: fixed;
+  bottom: var(--s-8);
+  left: 50%;
+  z-index: var(--z-toast);
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  max-width: min(var(--w-toast), calc(100vw - var(--s-13)));
+  padding: var(--s-3) var(--s-3) var(--s-3) var(--s-6);
+  transform: translateX(-50%);
+  border-radius: var(--r-l);
+  background: var(--raised);
+  box-shadow: var(--shadow-3);
+  font-size: var(--text-s);
+  animation: toast var(--dur-base) var(--ease);
+}
+
+.toast svg {
+  flex-shrink: 0;
+}
+
+@keyframes toast {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+.avatar-xs {
+  width: var(--avatar-xs);
+  height: var(--avatar-xs);
+  font-size: var(--avatar-xs-text);
+  letter-spacing: 0;
+}
+
+.avatar-s {
+  width: var(--avatar-s);
+  height: var(--avatar-s);
+  font-size: var(--text-2xs);
+}
+
+.avatar-m {
+  width: var(--avatar-m);
+  height: var(--avatar-m);
+  font-size: var(--text-s);
+}
+
+.profile-name {
+  font-size: var(--text-s);
+  font-weight: var(--weight-medium);
+}
+
+.profile-sub {
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+
+.dialog-s {
+  max-width: var(--w-dialog-s);
+}
+
+.dialog-m {
+  max-width: var(--w-dialog-m);
+}
+
+.dialog-l {
+  max-width: var(--w-dialog-l);
+}
+
+.welcome-card-wide {
+  max-width: var(--w-dialog-m);
+}
+
+/* Setup steps get a wider card, so each line says more and the steps look shorter. */
+.welcome-card-guide {
+  max-width: var(--w-card-guide);
+}
+
+.settings-server {
+  display: flex;
+  gap: var(--s-4);
+}
+
+.settings-port {
+  width: var(--w-port);
+  flex-shrink: 0;
+}
+
+.note {
+  margin: var(--s-3) 0 0;
+}
+
+.center {
+  justify-content: center;
+}
+
+.scrim-full {
+  padding: 0;
+  background: var(--canvas);
+}
+
+.scrim-full .welcome {
+  width: 100%;
+}
+
+.card-collapsed .card-sender {
+  flex-shrink: 0;
+  max-width: 30%;
+}
+
+.card-collapsed .muted {
+  font-size: var(--text-s);
+}
+
+.card-head .grow {
+  cursor: default;
+}
+
+.file .grow > * {
+  display: block;
+}
+
+.thread > .grow > * {
+  display: flex;
+}
+
+.thread > .grow > .truncate-1 {
+  display: block;
+}
+
+.profile-btn .grow > *,
+.suggest-item .grow > * {
+  display: block;
+}
+
+.nav-count + * {
+  flex-shrink: 0;
+}
+
+.empty-keys > span {
+  display: inline-flex;
+  align-items: center;
+}
+
+.welcome-card > .empty-icon,
+.welcome-card div > .empty-icon {
+  margin-bottom: var(--s-6);
+}
+
+
+/* The account dropdown, on its own row below the window buttons. */
+.switcher-row {
+  flex-shrink: 0;
+  margin: 0 var(--s-6) var(--s-4);
+}
+
+.switcher {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  height: var(--h-xl);
+  padding: 0 var(--s-4) 0 var(--s-3);
+  border-radius: var(--r-m);
+  color: var(--ink);
+  font-size: var(--text-s);
+  font-weight: var(--weight-medium);
+  text-align: left;
+  box-shadow: inset 0 0 0 1px var(--line);
+  transition: background-color var(--dur-fast) var(--ease);
+}
+
+.switcher:hover,
+.switcher[aria-expanded="true"] {
+  background: var(--hover);
+}
+
+.switcher svg {
+  color: var(--ink-3);
+}
+
+.switcher-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.switcher-menu {
+  width: var(--w-switcher-menu);
+}
+
+.menu-count {
+  color: var(--accent-text);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.menu-key {
+  min-width: var(--w-menu-key);
+  color: var(--ink-4);
+  font-size: var(--text-xs);
+  text-align: right;
+}
+
+.list-refresh {
+  margin-left: auto;
+  align-self: center;
+}
+
+.list-refresh + .list-refresh {
+  margin-left: 0;
+}
+
+.list-filter + .list-refresh,
+.list-refresh + .list-filter {
+  margin-left: 0;
+}
+
+.list-filter {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--s-2);
+  margin-left: auto;
+  max-width: var(--w-choice);
+  padding: 0 var(--s-3);
+  height: var(--h-s);
+  border-radius: var(--r-full);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+/* The inbox a search looks in: a long address gives way with "…" rather than squeeze the count. */
+.list-filter.list-filter-shrinks {
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.list-filter:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.list-filter[aria-pressed="true"] {
+  background: var(--accent);
+  box-shadow: none;
+  color: var(--accent-ink);
+}
+
+.settings-danger {
+  margin-right: auto;
+}
+
+/* In a mixed list, a small mark on the picture says which inbox a row is from. */
+.thread-avatar {
+  position: relative;
+  display: block;
+  width: var(--avatar-m);
+  height: var(--avatar-m);
+}
+
+.account-dot {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: var(--h-3xs);
+  height: var(--h-3xs);
+  border-radius: var(--r-full);
+  background: hsl(var(--h) var(--account-dot-s) var(--account-dot-l));
+  box-shadow: 0 0 0 2px var(--canvas);
+}
+
+/* Above an open email: which inbox and folder it's in. */
+.inbox-crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-3);
+  max-width: 100%;
+  height: var(--h-s);
+  margin-bottom: var(--s-2);
+  margin-left: calc(var(--s-3) * -1);
+  padding: 0 var(--s-3);
+  border-radius: var(--r-m);
+  color: var(--ink-3);
+  font-size: var(--text-s);
+  font-weight: var(--weight-regular);
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.inbox-crumb:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.inbox-crumb-sep {
+  color: var(--ink-4);
+}
+
+.inbox-crumb-folder {
+  flex-shrink: 0;
+}
+
+.reader-gap {
+  height: var(--s-8);
+}
+
+.avatar {
+  position: relative;
+  overflow: hidden;
+}
+
+.avatar-picture {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--r-full);
+  animation: fade var(--dur-base) var(--ease);
+}
+
+.avatar-picture-person {
+  object-fit: cover;
+}
+
+/* Logos often have see-through parts, and need room inside the circle. */
+.avatar-picture-logo {
+  padding: var(--s-1);
+  background: var(--mail-paper);
+  object-fit: contain;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.from-btn {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+  height: var(--h-s);
+  border-radius: var(--r-s);
+  color: var(--ink);
+  font-size: var(--text-m);
+  text-align: left;
+}
+
+.from-btn svg {
+  color: var(--ink-3);
+}
+
+.from-btn:hover {
+  color: var(--ink);
+}
+
+.trusted-note {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin: 0 var(--s-4) var(--s-4);
+  padding: 0 var(--s-2);
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+
+/* Selecting several conversations. The picture gives way to a tick box. */
+.thread-check {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-full);
+  background: var(--raised);
+  box-shadow: inset 0 0 0 1.5px var(--line-strong);
+  color: var(--btn-primary-ink);
+}
+
+.thread-avatar:hover .thread-check,
+.list-picking .thread-check {
+  display: flex;
+}
+
+.thread-check[aria-checked="true"] {
+  background: var(--btn-primary-fill);
+  box-shadow: none;
+}
+
+.thread-picked,
+.thread-picked:hover {
+  --row-fill: var(--accent-soft-2);
+}
+
+.bulk {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  padding: var(--s-10);
+  text-align: center;
+}
+
+.bulk-count {
+  color: var(--ink);
+  font-size: var(--text-number);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--track-display);
+}
+
+.bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--s-4);
+  max-width: var(--w-reader-narrow);
+  margin-top: var(--s-8);
+}
+
+.bulk-clear {
+  margin-top: var(--s-8);
+}
+
+.bulk-hint {
+  margin-top: var(--s-4);
+}
+
+.kbd-quiet {
+  font-weight: var(--weight-medium);
+  color: var(--ink-2);
+}
+
+/* Choices from Appearance. */
+:root[data-density="compact"] .thread {
+  gap: var(--s-4);
+  padding: var(--s-3) var(--s-4) var(--s-3) var(--s-3);
+}
+
+:root[data-density="compact"] .day-label {
+  padding-top: var(--s-3);
+  padding-bottom: var(--s-1);
+}
+
+:root[data-preview="0"] .thread-snippet {
+  display: none;
+}
+
+:root[data-preview="2"] .thread-snippet {
+  display: -webkit-box;
+  overflow: hidden;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* Fonts chosen in Writing, so the editor matches what's sent. */
+[data-font="arial"] .editor {
+  font-family: var(--mail-font-arial);
+}
+
+[data-font="georgia"] .editor {
+  font-family: var(--mail-font-georgia);
+}
+
+[data-font="times"] .editor {
+  font-family: var(--mail-font-times);
+}
+
+[data-font="courier"] .editor {
+  font-family: var(--mail-font-courier);
+}
+
+/* The chosen size is what the email is sent at. On screen it grows with the text size too.
+   From, To, Cc, Bcc and Subject use the same size, so the whole window reads as one. */
+.composer[data-font-size="13"] {
+  --compose-text: calc(var(--mail-size-13) * var(--text-scale));
+}
+
+.composer[data-font-size="14"] {
+  --compose-text: calc(var(--mail-size-14) * var(--text-scale));
+}
+
+.composer[data-font-size="16"] {
+  --compose-text: calc(var(--mail-size-16) * var(--text-scale));
+}
+
+.composer[data-font-size="18"] {
+  --compose-text: calc(var(--mail-size-18) * var(--text-scale));
+}
+
+.composer .composer-label,
+.composer .from-btn,
+.composer .chip,
+.composer .composer-row input.plain-input:not([type]) {
+  font-size: var(--compose-text);
+}
+
+[data-font-size="14"] .editor {
+  font-size: calc(var(--mail-size-14) * var(--text-scale));
+}
+
+[data-font-size="13"] .editor {
+  font-size: calc(var(--mail-size-13) * var(--text-scale));
+}
+
+[data-font-size="16"] .editor {
+  font-size: calc(var(--mail-size-16) * var(--text-scale));
+}
+
+[data-font-size="18"] .editor {
+  font-size: calc(var(--mail-size-18) * var(--text-scale));
+}
+
+.mail-text {
+  font-size: var(--text-read);
+}
+
+/* The Settings window. */
+.settings {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  display: grid;
+  grid-template-columns: var(--w-settings-nav) minmax(0, 1fr);
+  background: var(--canvas);
+  animation: fade var(--dur-fast) var(--ease);
+}
+
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--sidebar);
+  border-right: 1px solid var(--line);
+}
+
+/* Stays put while the pages scroll under it. */
+.settings-nav-head {
+  flex-shrink: 0;
+  padding: 0 var(--s-4) var(--s-4);
+}
+
+.settings-hit {
+  height: auto;
+  padding-block: var(--s-3);
+}
+
+.settings-hit-words {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-hit-words > * {
+  display: block;
+}
+
+.settings-hit-page {
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+
+.settings-nav-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 var(--s-4) var(--s-6);
+}
+
+.settings-nav-title {
+  padding: var(--s-2) var(--s-4) var(--s-3);
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+.settings-nav-gap {
+  margin-top: var(--s-8);
+}
+
+.settings-page {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.settings-bar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  height: var(--h-3xl);
+  padding: 0 var(--s-6);
+  background: var(--canvas);
+}
+
+.settings-page-inner {
+  max-width: var(--w-settings-page);
+  margin: 0 auto;
+  padding: 0 var(--s-10) var(--s-13);
+}
+
+.settings-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-6);
+}
+
+.settings-head > .btn {
+  flex-shrink: 0;
+}
+
+/* What connected AI apps have done. */
+.activity-filters {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--s-3);
+}
+
+.activity-week {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  font-size: var(--text-s);
+}
+
+.activity-headline {
+  color: var(--ink);
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+}
+
+.activity-session {
+  padding-top: var(--s-5);
+}
+
+.activity-session-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  font-size: var(--text-s);
+}
+
+.activity-app {
+  color: var(--ink);
+  font-weight: var(--weight-semibold);
+}
+
+.activity-when {
+  margin-left: auto;
+}
+
+/* A thread from the app's picture ties together what it did in one go. */
+.activity-lines {
+  display: flex;
+  flex-direction: column;
+  margin: var(--s-1) 0 0 calc(var(--avatar-xs) / 2);
+  padding-left: var(--s-4);
+  border-left: 1px solid var(--line);
+}
+
+.activity-line,
+.activity-fold {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  width: 100%;
+  min-height: var(--h-m);
+  padding: 0 var(--s-3);
+  border-radius: var(--r-m);
+  color: var(--ink-2);
+  font-size: var(--text-s);
+  text-align: left;
+}
+
+.activity-fold {
+  gap: var(--s-3);
+  color: var(--ink-3);
+}
+
+button.activity-line:hover,
+.activity-fold:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.activity-words {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+}
+
+.activity-verb {
+  flex-shrink: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-about {
+  min-width: 0;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-full);
+  background: var(--press);
+}
+
+.activity-about strong {
+  color: var(--ink);
+  font-weight: var(--weight-medium);
+}
+
+/* Most of a session happens within a minute, so each time waits until it's looked for. */
+.activity-time {
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+.activity-line:hover .activity-time {
+  opacity: 1;
+}
+
+.settings-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-13) var(--s-8);
+  border-radius: var(--r-l);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-size: var(--text-s);
+  text-align: center;
+}
+
+.settings-title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--track-display);
+  overflow-wrap: anywhere;
+}
+
+.settings-intro {
+  margin: var(--s-1) 0 0;
+  color: var(--ink-3);
+  font-size: var(--text-s);
+}
+
+.settings-page-inner > .stack-l {
+  margin-top: var(--s-8);
+}
+
+.row-label {
+  font-size: var(--text-base);
+}
+
+.row-help {
+  margin-top: var(--s-1);
+  color: var(--ink-3);
+  font-size: var(--text-s);
+  line-height: var(--leading-snug);
+}
+
+.group-pad {
+  padding: var(--s-6);
+}
+
+.section-gap {
+  margin-top: var(--s-6);
+}
+
+.stat {
+  color: var(--ink-2);
+  font-weight: var(--weight-medium);
+}
+
+.shortcut {
+  flex-shrink: 0;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-s);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  line-height: var(--h-xs);
+}
+
+/* An on and off switch. */
+.toggle {
+  appearance: none;
+  position: relative;
+  flex-shrink: 0;
+  width: var(--w-toggle);
+  height: var(--h-toggle);
+  margin: 0;
+  border-radius: var(--r-full);
+  background: var(--line-strong);
+  transition: background-color var(--dur-fast) var(--ease);
+}
+
+.toggle::after {
+  content: "";
+  position: absolute;
+  top: var(--s-1);
+  left: var(--s-1);
+  width: calc(var(--h-toggle) - 2 * var(--s-1));
+  height: calc(var(--h-toggle) - 2 * var(--s-1));
+  border-radius: var(--r-full);
+  background: var(--on-fill);
+  box-shadow: var(--shadow-1);
+  transition: transform var(--dur-fast) var(--ease);
+}
+
+.toggle:checked {
+  background: var(--btn-primary-fill);
+}
+
+.toggle:checked::after {
+  transform: translateX(calc(var(--w-toggle) - var(--h-toggle)));
+}
+
+.toggle:focus-visible {
+  box-shadow: var(--ring);
+}
+
+/* A few choices, side by side. */
+.segmented {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: var(--s-1);
+  padding: var(--s-1);
+  border-radius: var(--r-m);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.segment {
+  height: var(--h-s);
+  padding: 0 var(--s-5);
+  border-radius: var(--r-s);
+  color: var(--ink-2);
+  font-size: var(--text-s);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.segment:hover {
+  color: var(--ink);
+}
+
+.segment[aria-checked="true"] {
+  background: var(--btn-secondary-fill);
+  color: var(--btn-secondary-ink);
+  box-shadow: 0 0 0 1px var(--line-strong), var(--shadow-1);
+}
+
+/* A longer list of choices, behind a button. */
+.choice {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--s-3);
+  max-width: var(--w-choice);
+  height: var(--h-m);
+  padding: 0 var(--s-4) 0 var(--s-5);
+  border-radius: var(--r-m);
+  background: var(--btn-secondary-fill);
+  box-shadow: var(--btn-secondary-shadow);
+  color: var(--btn-secondary-ink);
+  font-size: var(--text-s);
+  font-weight: var(--weight-medium);
+}
+
+.choice svg {
+  color: var(--ink-3);
+}
+
+.hue-row {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--s-2);
+}
+
+.hue {
+  width: var(--avatar-xs);
+  height: var(--avatar-xs);
+  border-radius: var(--r-full);
+  background: hsl(var(--h) var(--account-dot-s) var(--account-dot-l));
+  transition: transform var(--dur-fast) var(--ease);
+}
+
+.hue:hover {
+  transform: scale(1.14);
+}
+
+.hue[aria-checked="true"] {
+  box-shadow: 0 0 0 2px var(--raised), 0 0 0 4px var(--ink-2);
+}
+
+/* Signatures. */
+.signature {
+  margin-bottom: var(--s-6);
+  overflow: hidden;
+  border-radius: var(--r-l);
+  background: var(--canvas);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.signature-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-2) var(--s-3) var(--s-2) var(--s-6);
+  border-bottom: 1px solid var(--line);
+}
+
+.signature-box {
+  display: flex;
+  flex-direction: column;
+  min-height: var(--h-signature);
+  max-height: var(--h-signature-max);
+}
+
+.signature-box .editor {
+  min-height: 0;
+}
+
+.alias-form {
+  gap: var(--s-4);
+}
+
+.alias-form input {
+  flex: 1;
+  min-width: 0;
+  height: var(--h-m);
+  font-size: var(--text-s);
+}
+
+.toast-undo {
+  bottom: var(--s-8);
+}
+
+/* An email waiting out its undo time: the one toast that has to be seen. */
+.toast-sending {
+  overflow: hidden;
+  gap: var(--s-3);
+  min-width: var(--w-toast-sending);
+  padding: var(--s-4) var(--s-4) var(--s-4) var(--s-6);
+  background: var(--btn-primary-fill);
+  box-shadow: var(--sending-glow);
+  color: var(--btn-primary-ink);
+  font-size: var(--text-base);
+  animation: toast var(--dur-base) var(--ease), sending-glow 1.6s var(--ease) infinite;
+}
+
+.toast-sending-text {
+  font-weight: var(--weight-semibold);
+}
+
+.toast-sending .toast-sending-undo {
+  background: var(--btn-primary-ink);
+  color: var(--sending-undo-ink);
+  font-weight: var(--weight-semibold);
+}
+
+.toast-sending .toast-sending-undo:hover {
+  background: var(--sending-undo-hover);
+}
+
+.toast-sending .toast-sending-now {
+  background: transparent;
+  color: var(--btn-primary-ink);
+}
+
+.toast-sending .toast-sending-now:hover {
+  background: var(--sending-now-hover);
+}
+
+.toast-sending-time {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: var(--h-sending-time);
+  background: var(--sending-track);
+}
+
+.toast-sending-time > span {
+  display: block;
+  height: 100%;
+  transform: scaleX(var(--sending-left));
+  transform-origin: left;
+  background: var(--btn-primary-ink);
+  transition: transform var(--dur-base) linear;
+}
+
+@keyframes sending-glow {
+  50% {
+    box-shadow: var(--sending-glow-wide);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast-sending {
+    animation: none;
+  }
+}
+
+/* How far the mail download has got, in the list while a new inbox is blank and in the sidebar after. */
+.download-bar {
+  overflow: hidden;
+  width: 100%;
+  height: var(--s-1);
+  border-radius: var(--r-full);
+  background: var(--line-strong);
+}
+
+.download-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  width: var(--download-done);
+  background: var(--accent);
+  transition: width var(--dur-base) var(--ease);
+}
+
+.download-bar[data-unknown] > span {
+  width: 30%;
+  animation: download-slide 1.4s var(--ease) infinite;
+}
+
+@keyframes download-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(340%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .download-bar[data-unknown] > span {
+    animation: none;
+  }
+}
+
+.first-load .download-bar {
+  width: var(--w-first-load);
+  height: var(--h-3xs);
+  margin: var(--s-6) 0 var(--s-4);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.menu .grow {
+  min-width: 0;
+}
+
+/* Search. */
+.list-search {
+  flex-shrink: 0;
+  padding: 0 var(--s-8) var(--s-5);
+}
+
+/* In the header, straight after the title, with its buttons kept to the right. */
+.list-head .list-search {
+  flex: 1;
+  min-width: 0;
+  max-width: var(--w-head-search);
+  margin: 0;
+  margin-left: var(--s-6);
+  margin-right: auto;
+  padding: 0;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  height: var(--h-xl);
+  padding: 0 var(--s-3) 0 var(--s-5);
+  border-radius: var(--r-m);
+  background: var(--raised);
+  box-shadow: 0 0 0 1px var(--line-strong), var(--shadow-1);
+  color: var(--ink-3);
+  transition: box-shadow var(--dur-fast) var(--ease);
+}
+
+.search:focus-within {
+  box-shadow: 0 0 0 1px var(--accent), var(--ring);
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  appearance: none;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-base);
+  user-select: text;
+}
+
+.search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.search .kbd-quiet {
+  flex-shrink: 0;
+  height: var(--h-xs);
+  padding: 0 var(--s-3);
+  border-radius: var(--r-s);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  line-height: var(--h-xs);
+}
+
+.search-note {
+  flex-shrink: 0;
+  margin: 0 var(--s-8) var(--s-4);
+}
+
+/* One line saying what the AI understood, with the choices beside it. */
+.search-ai {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: var(--h-xl);
+  padding: var(--s-1) var(--s-2) var(--s-1) var(--s-4);
+  border-radius: var(--r-m);
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-size: var(--text-s);
+}
+
+.search-ai > svg {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.search-problem {
+  margin-top: var(--s-2);
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+
+.search-foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-6) var(--s-8) var(--s-8);
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+
+.search-line {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.search-line .link-btn {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+}
+
+/* A filter being made: which emails, then what happens. */
+.filter-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-8);
+}
+
+/* Normal or AI: two equal halves, and the chosen one's raised pill slides across. */
+.kind-switch {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: var(--s-1);
+  border-radius: var(--r-ml);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.kind-switch-thumb {
+  position: absolute;
+  top: var(--s-1);
+  bottom: var(--s-1);
+  left: var(--s-1);
+  width: calc(50% - var(--s-1));
+  border-radius: var(--r-m);
+  background: var(--btn-secondary-fill);
+  box-shadow: var(--btn-secondary-shadow);
+  transition: transform var(--dur-base) var(--ease);
+}
+
+.kind-switch[data-on="ai"] .kind-switch-thumb {
+  transform: translateX(100%);
+}
+
+.kind-switch-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  height: var(--h-l);
+  border-radius: var(--r-m);
+  color: var(--ink-3);
+  font-size: var(--text-s);
+  font-weight: var(--weight-medium);
+  transition: color var(--dur-fast) var(--ease);
+}
+
+.kind-switch-option:hover {
+  color: var(--ink-2);
+}
+
+.kind-switch-option[aria-checked="true"] {
+  color: var(--ink);
+}
+
+/* AI's mark takes the accent once chosen, so the two read as different kinds. */
+.kind-ai[aria-checked="true"] svg {
+  color: var(--accent);
+}
+
+.kind-switch-option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kind-switch-thumb {
+    transition: none;
+  }
+}
+
+/* A condition or action: what kind, its value, and a way to remove it. */
+.rule-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.rule-row > button:first-child {
+  justify-content: space-between;
+  width: 100%;
+}
+
+/* Long enough that the common uses can be read in full. */
+.filter-form > .field > button {
+  justify-content: space-between;
+  width: 100%;
+  max-width: none;
+}
+
+.filter-form > .field > button > * {
+  max-width: none;
+}
+
+.rule-add {
+  align-self: flex-start;
+  font-size: var(--text-s);
+}
+
+.filter-describe {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.filter-describe input {
+  flex: 1;
+  min-width: 0;
+}
+
+.filter-describe .btn {
+  flex-shrink: 0;
+}
+
+.filter-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3) var(--s-7);
+}
+
+/* An event: a big title, then one quiet line per detail, each led by its icon. */
+.event-dialog {
+  max-width: var(--w-event-dialog);
+}
+
+.event-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+}
+
+input.event-title {
+  height: auto;
+  padding: var(--s-3) var(--s-4);
+  margin: 0 calc(var(--s-4) * -1);
+  width: calc(100% + var(--s-4) * 2);
+  border-radius: var(--r-m);
+  background: transparent;
+  box-shadow: none;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-title);
+}
+
+input.event-title:hover {
+  background: var(--hover);
+}
+
+input.event-title:focus {
+  background: var(--hover);
+  box-shadow: none;
+}
+
+.event-fields {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line);
+}
+
+.event-field {
+  display: grid;
+  grid-template-columns: var(--event-icon-col) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--s-6);
+  min-height: var(--h-4xl);
+  padding: var(--s-4) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.event-field-top {
+  align-items: start;
+}
+
+.event-field-top .event-field-icon {
+  padding-top: var(--s-3);
+}
+
+.event-field-icon {
+  display: flex;
+  justify-content: center;
+  color: var(--ink-3);
+}
+
+.event-swatch {
+  width: var(--event-swatch);
+  height: var(--event-swatch);
+  border-radius: var(--r-xs);
+  background: hsl(var(--h) var(--event-s) var(--event-l));
+}
+
+.event-field-body {
+  min-width: 0;
+}
+
+.event-when {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.event-when-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.event-when-label {
+  width: var(--event-when-label);
+  color: var(--ink-3);
+  font-size: var(--text-s);
+}
+
+input.event-pill {
+  width: auto;
+  height: var(--h-m);
+  padding: 0 var(--s-4);
+  border-radius: var(--r-m);
+  background: var(--sunken);
+  box-shadow: none;
+  font-size: var(--text-base);
+  font-variant-numeric: tabular-nums;
+}
+
+input.event-pill:hover {
+  background: var(--hover-strong);
+}
+
+input.event-pill::-webkit-calendar-picker-indicator {
+  display: none;
+}
+
+.event-length {
+  margin-left: var(--s-2);
+  color: var(--ink-3);
+  font-size: var(--text-s);
+}
+
+.event-warn {
+  color: var(--danger);
+  font-size: var(--text-s);
+}
+
+.event-all-day {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--s-2);
+  color: var(--ink-2);
+  font-size: var(--text-s);
+}
+
+input.event-plain,
+textarea.event-plain {
+  height: var(--h-m);
+  padding: 0 var(--s-4);
+  margin-left: calc(var(--s-4) * -1);
+  width: calc(100% + var(--s-4));
+  border-radius: var(--r-m);
+  background: transparent;
+  box-shadow: none;
+  font-size: var(--text-base);
+}
+
+textarea.event-plain {
+  height: auto;
+  padding: var(--s-3) var(--s-4);
+  resize: none;
+  line-height: var(--leading-read);
+}
+
+input.event-plain:hover,
+textarea.event-plain:hover,
+input.event-plain:focus,
+textarea.event-plain:focus {
+  background: var(--hover);
+  box-shadow: none;
+}
+
+.event-note {
+  color: var(--ink-2);
+  font-size: var(--text-s);
+}
+
+.event-people {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding-top: var(--s-2);
+  font-size: var(--text-s);
+}
+
+.event-delete {
+  color: var(--danger);
+}
+
+/* Tabs above the inbox. */
+.tabs {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--s-1);
+  margin: 0 var(--s-8) var(--s-4);
+  padding: var(--s-1);
+  border-radius: var(--r-l);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+/* Longer names get more room, so a count never pushes a word against the edge. */
+.tab {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-width: 0;
+  height: var(--h-l);
+  padding: 0 var(--s-3);
+  border-radius: var(--r-ml);
+  color: var(--ink-3);
+  font-size: var(--text-s);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.tab:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+/* The selected tab is a solid button, the same as the app's other raised buttons.
+   It keeps the same weight, because bolder words would be wider and nudge every tab along. */
+.tab[aria-selected="true"] {
+  background: var(--btn-secondary-fill);
+  box-shadow: var(--btn-secondary-shadow);
+  color: var(--btn-secondary-ink);
+}
+
+.tab-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The inbox's tabs keep their whole names; when they don't all fit, the row scrolls. */
+.tabs-inbox {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs-inbox::-webkit-scrollbar {
+  display: none;
+}
+
+.tabs-inbox .tab {
+  flex: 1 0 auto;
+}
+
+.tabs-inbox .tab-name {
+  overflow: visible;
+}
+
+.tab-count {
+  padding: 0 var(--s-2);
+  border-radius: var(--r-full);
+  background: var(--selected);
+  color: var(--ink-2);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-read);
+}
+
+.tab[aria-selected="true"] .tab-count {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* Warnings about an email. */
+.pill-risk {
+  flex-shrink: 0;
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.scam-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-4);
+  margin-bottom: var(--s-5);
+  padding: var(--s-5) var(--s-6);
+  border-radius: var(--r-l);
+  background: var(--danger-soft);
+  color: var(--ink);
+  font-size: var(--text-s);
+  line-height: var(--leading-snug);
+}
+
+.scam-note > svg {
+  flex-shrink: 0;
+  margin-top: var(--s-1);
+  color: var(--danger);
+}
+
+.card-unsubscribe {
+  margin-left: var(--s-3);
+  font-size: var(--text-xs);
+}
+
+/* What was worked out from an email address. */
+.provider-found {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-5) var(--s-6);
+  border-radius: var(--r-l);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-size: var(--text-s);
+  line-height: var(--leading-snug);
+}
+
+/* Setup steps for a provider: a numbered path with a line joining the numbers. The step to
+   do now stands out, done steps get a tick, and later ones wait quietly. White space, not a
+   box, holds them together. */
+.provider-guide {
+  padding: var(--s-6) 0 var(--s-6);
+}
+
+/* The address being connected, once known: a quiet line with a way back to change it. */
+.address-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  height: var(--h-xl);
+  padding: 0 var(--s-6);
+  border-radius: var(--r-m);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-size: var(--text-read);
+}
+
+.address-chip-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.guide {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-10);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guide-step {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-6);
+}
+
+/* The line down to the next number. */
+.guide-step:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  top: calc(var(--h-xs) + var(--s-2));
+  bottom: calc(-1 * var(--s-10) + var(--s-2));
+  left: calc(var(--h-xs) / 2);
+  width: 1px;
+  background: var(--line-strong);
+}
+
+.guide-number {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--h-xs);
+  height: var(--h-xs);
+  border-radius: var(--r-full);
+  background: var(--raised);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  transition: background var(--dur-base), color var(--dur-base);
+}
+
+.guide-step[data-state="current"] .guide-number {
+  background: var(--accent);
+  box-shadow: none;
+  color: var(--accent-ink-on-color);
+}
+
+.guide-step[data-state="done"] .guide-number {
+  background: var(--accent-soft);
+  box-shadow: none;
+  color: var(--accent-text);
+}
+
+.guide-words {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-1);
+  min-width: 0;
+  min-height: var(--h-xs);
+  justify-content: center;
+}
+
+.guide-title {
+  color: var(--ink);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+}
+
+.guide-step[data-state="next"] .guide-title {
+  color: var(--ink-2);
+}
+
+.guide-detail {
+  color: var(--ink-3);
+}
+
+.guide-link {
+  gap: var(--s-3);
+  margin-top: var(--s-3);
+  text-decoration: none;
+}
+
+/* The step to do now: its button is tinted, leaving solid blue to the one main button. */
+.guide-step[data-state="current"] .guide-link {
+  background: var(--accent-soft);
+  box-shadow: none;
+  color: var(--accent-text);
+}
+
+.guide-step[data-state="current"] .guide-link:hover {
+  background: var(--accent-soft-2);
+}
+
+.guide-box {
+  align-self: stretch;
+  margin-top: var(--s-3);
+}
+
+.guide-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  margin-top: var(--s-2);
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--line);
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+
+.guide-note svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.signin-note {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--s-4);
+  margin: 0 var(--s-8) var(--s-4);
+  padding: var(--s-4) var(--s-5);
+  border-radius: var(--r-m);
+  background: var(--danger-soft);
+  color: var(--ink);
+  font-size: var(--text-s);
+  line-height: var(--leading-snug);
+}
+
+/* A new version is ready: tinted with the accent, so it's noticed without alarming. */
+.update-bar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--s-6);
+  margin: 0 var(--s-8) var(--s-5);
+  padding: var(--s-4) var(--s-4) var(--s-4) var(--s-5);
+  border-radius: var(--r-l);
+  /* A soft wash of green from the left: good news, and unlike anything else on screen. */
+  background: linear-gradient(90deg, var(--update-wash), transparent 70%), var(--raised);
+  box-shadow: 0 0 0 1px var(--line), var(--shadow-1);
+  animation: dialog var(--dur-base) var(--ease);
+}
+
+.update-bar[data-failed] {
+  background: linear-gradient(90deg, var(--danger-soft), transparent 70%), var(--raised);
+}
+
+/* The app's own icon, with a green dot saying something new is in. */
+.update-bar-icon {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--h-l);
+  height: var(--h-l);
+  border-radius: var(--r-m);
+  background: var(--raised);
+  box-shadow: 0 0 0 1px var(--line), var(--shadow-1);
+}
+
+.update-bar-icon .logo-mark {
+  width: var(--icon-l);
+  height: var(--icon-l);
+}
+
+.update-bar-dot {
+  position: absolute;
+  top: calc(-1 * var(--s-1));
+  right: calc(-1 * var(--s-1));
+  width: var(--s-5);
+  height: var(--s-5);
+  border-radius: var(--r-full);
+  background: var(--success);
+  box-shadow: 0 0 0 2px var(--raised);
+}
+
+.update-bar[data-failed] .update-bar-dot {
+  background: var(--danger);
+}
+
+.update-bar-words {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+}
+
+.update-bar-title {
+  color: var(--ink);
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+}
+
+.update-bar-text {
+  overflow: hidden;
+  color: var(--ink-3);
+  font-size: var(--text-s);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.update-bar-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.welcome-card .link-btn {
+  display: block;
+  margin-inline: auto;
+}
+
+.welcome-back {
+  display: flex;
+  margin: calc(-1 * var(--s-3)) 0 var(--s-6) calc(-1 * var(--s-3));
+}
+
+/* A reply, written under the conversation it belongs to. */
+.composer-inline {
+  position: relative;
+  right: auto;
+  bottom: auto;
+  z-index: auto;
+  width: 100%;
+  height: auto;
+  margin-top: var(--s-4);
+  /* Scrolled into view down to the reading pane's own bottom space, not flush with the edge. */
+  scroll-margin-bottom: var(--s-11);
+  overflow: visible;
+  box-shadow: 0 0 0 1px var(--line-strong), var(--shadow-2);
+  animation: fade var(--dur-base) var(--ease);
+}
+
+.composer-inline .composer-body {
+  min-height: var(--h-inline-reply);
+  overflow: visible;
+}
+
+/* The tools and Send button stay on screen while a long reply scrolls. */
+.composer-bottom {
+  flex-shrink: 0;
+}
+
+.composer-inline .composer-bottom {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+}
+
+.composer-inline .composer-foot {
+  border-radius: 0 0 var(--r-xl) var(--r-xl);
+}
+
+.composer-row[hidden] {
+  display: none;
+}
+
+/* ---------- Menu bar panel ---------- */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--canvas);
+}
+
+.panel-title-link {
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  transition: color var(--dur-fast) var(--ease);
+}
+
+.panel-title-link:hover {
+  color: var(--accent);
+}
+
+.panel-foot {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: space-between;
+  padding: var(--s-3) var(--s-4);
+  border-top: 1px solid var(--line);
+}
+
+.panel-bar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--s-1);
+  padding: var(--s-4) var(--s-4) var(--s-2);
+}
+
+.panel-reading {
+  padding: 0 var(--s-4) var(--s-4);
+}
+
+.panel-reading .reader-subject {
+  margin: 0 var(--s-2) var(--s-4);
+  font-size: var(--text-m);
+}
+
+.panel-quote {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin: 0 var(--s-4);
+  padding: var(--s-5) var(--s-6);
+  border-radius: var(--r-l);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.panel-quote-from {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.panel-quote-subject {
+  font-weight: var(--weight-semibold);
+}
+
+.panel-quote-text {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  white-space: normal;
+}
+
+.panel-reply .composer-inline {
+  width: auto;
+  margin: var(--s-4) var(--s-4) var(--s-4);
+}
+
+.logo-mark {
+  width: var(--icon-m);
+  height: var(--icon-m);
+}
+
+/* Narrower than the main window, so the tabs sit closer to the edges. */
+.panel .tabs {
+  margin: 0 var(--s-5) var(--s-3);
+}
+
+/* The panel is narrow, so its tabs are tighter and a long name gives way before a count. */
+.panel .tab {
+  gap: var(--s-1);
+  height: var(--h-m);
+  padding: 0 var(--s-2);
+  font-size: var(--text-xs);
+}
+
+.panel .tab-count {
+  flex-shrink: 0;
+}
+
+.panel .toast-sending {
+  min-width: 0;
+}
+
+.panel .toast {
+  right: var(--s-4);
+  left: var(--s-4);
+  max-width: none;
+  transform: none;
+  animation-name: fade;
+}
+
+/* ---------- Team ---------- */
+
+/* Room below too, so a summary or note that follows doesn't touch the buttons. */
+.team-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  margin-top: var(--s-4);
+}
+
+/* Who has it: a round face (or an empty circle with a plus) and their name. */
+.team-assign {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-3);
+  max-width: var(--w-menu);
+  padding: 0;
+  padding-right: var(--s-3);
+  border-radius: var(--r-full);
+  color: var(--ink-2);
+  font-size: var(--text-s);
+  transition: color var(--dur-fast) var(--ease);
+}
+
+.team-assign[data-done] {
+  color: var(--ink-3);
+}
+
+.team-assign:hover,
+.team-assign[aria-expanded="true"] {
+  color: var(--ink);
+}
+
+.team-assign-face {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: var(--h-s);
+  height: var(--h-s);
+  border-radius: 50%;
+  color: var(--ink-3);
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    background-color var(--dur-fast) var(--ease);
+}
+
+.team-assign-face[data-empty] {
+  border: 1px dashed var(--line-strong);
+}
+
+.team-assign:hover .team-assign-face[data-empty],
+.team-assign[aria-expanded="true"] .team-assign-face[data-empty] {
+  border-style: solid;
+  border-color: var(--accent-text);
+  background: var(--hover);
+  color: var(--accent-text);
+}
+
+.team-presence,
+.team-replying,
+.team-replying-row {
+  color: var(--accent-text);
+  font-size: var(--text-s);
+}
+
+.team-presence {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+}
+
+.team-replying {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+  font-weight: var(--weight-medium);
+}
+
+.team-replying-row {
+  display: block;
+}
+
+.team-dot {
+  flex-shrink: 0;
+  width: var(--s-3);
+  height: var(--s-3);
+  border-radius: var(--r-full);
+  background: var(--accent);
+}
+
+.team-holder {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-left: var(--s-3);
+}
+
+.team-notes {
+  margin-top: var(--s-6);
+  padding: var(--s-6);
+  border-radius: var(--r-xl);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.team-notes-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-bottom: var(--s-4);
+  color: var(--ink);
+  font-size: var(--text-s);
+  font-weight: var(--weight-semibold);
+}
+
+.team-notes-title .icon {
+  color: var(--accent);
+}
+
+.team-notes-private {
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+}
+
+.team-note {
+  display: flex;
+  gap: var(--s-4);
+  padding: var(--s-3) 0;
+}
+
+.team-note-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  min-height: var(--h-s);
+  font-size: var(--text-s);
+}
+
+.team-note-head .icon-btn {
+  margin-left: auto;
+}
+
+.team-note-text {
+  color: var(--ink);
+  font-size: var(--text-base);
+  line-height: var(--leading-body);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.team-note-form {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+}
+
+/* One rounded field with the button inside it, like the message box elsewhere. */
+.team-note-field {
+  display: flex;
+  /* The button sits in the middle of the box, with the same room above, below and beside it. */
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-2) var(--s-2) var(--s-5);
+  border-radius: var(--r-l);
+  background: var(--raised);
+  box-shadow: inset 0 0 0 1px var(--line), var(--shadow-1);
+  transition: box-shadow var(--dur-fast) var(--ease);
+}
+
+.team-note-field:focus-within {
+  box-shadow: inset 0 0 0 1px var(--accent), var(--ring);
+}
+
+.team-note-form textarea,
+.team-note-form textarea:focus {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--h-l);
+  max-height: var(--h-note-max);
+  padding: var(--s-3) 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-base);
+  line-height: var(--leading-body);
+  overflow-y: auto;
+  resize: none;
+  outline: none;
+}
+
+.team-note-send {
+  flex-shrink: 0;
+}
+
+.team-note-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding-left: var(--s-5);
+  color: var(--ink-3);
+  font-size: var(--text-2xs);
+}
+
+/* No notes yet: one quiet line, not the whole box. */
+.team-note-open {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  margin-bottom: var(--s-5);
+  padding: var(--s-3) var(--s-6);
+  border: 0;
+  border-radius: var(--r-xl);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--text-s);
+  cursor: pointer;
+}
+
+.team-note-open:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.team-note-open .team-notes-private {
+  margin-left: auto;
+}
+
+.team-note-add {
+  align-self: flex-start;
+}
+
+.team-suggest {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  z-index: var(--z-popover);
+  width: var(--w-suggest);
+  margin-bottom: var(--s-2);
+  padding: var(--s-2);
+  border-radius: var(--r-l);
+  background: var(--raised);
+  box-shadow: 0 0 0 1px var(--line), var(--shadow-2);
+}
+
+.team-suggest button {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  height: var(--h-m);
+  padding: 0 var(--s-3);
+  border-radius: var(--r-m);
+  color: var(--ink);
+  font-size: var(--text-s);
+  text-align: left;
+}
+
+.team-suggest button:hover {
+  background: var(--hover);
+}
+
+.team-form input {
+  flex: 1;
+  min-width: 0;
+  height: var(--h-s);
+  padding: 0 var(--s-4);
+  border-radius: var(--r-m);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink);
+  font-size: var(--text-base);
+}
+
+.team-code .key-box {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Setting mail aside */
+.pill-later {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.pin-mark {
+  flex-shrink: 0;
+  color: var(--ink-3);
+}
+
+.later-note {
+  margin: 0 var(--s-5) var(--s-4);
+  color: var(--ink-3);
+  font-size: var(--text-s);
+}
+
+.google-mark {
+  flex-shrink: 0;
+  width: var(--icon-s);
+  height: var(--icon-s);
+}
+
+.sidebar-download {
+  padding: 0 var(--s-3) var(--s-4);
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+
+.sidebar-download .download-bar {
+  margin-top: var(--s-2);
+}
+
+.sidebar-download-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+}
+
+.sidebar-download-row .sidebar-download-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-download-toggle {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+}
+
+/* Paused, the bar stands still in grey. */
+.sidebar-download[data-paused] .download-bar {
+  opacity: 0.5;
+  filter: grayscale(1);
+}
+
+.sender-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-4);
+  border-bottom: 1px solid var(--line);
+}
+
+.sender-open {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--s-4);
+  min-width: 0;
+  padding: var(--s-2);
+  border-radius: var(--r-m);
+  text-align: left;
+}
+
+.sender-open:hover {
+  background: var(--hover);
+}
+
+.sender-open .thread-from,
+.sender-open .thread-snippet {
+  display: block;
+}
+
+/* Newsletters: a table across the whole panel, as there's only ever one thing to do per row. */
+.newsletters {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  container-type: inline-size;
+}
+
+.news-head {
+  flex-wrap: wrap;
+  row-gap: var(--s-4);
+}
+
+.news-head .list-title {
+  margin-right: var(--s-4);
+}
+
+.news-tabs {
+  margin: 0;
+}
+
+.news-search {
+  width: var(--w-text-narrow);
+  margin-left: auto;
+}
+
+.news-scroll {
+  padding: 0 var(--s-3) var(--s-6);
+}
+
+.news-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+.news-table th {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  height: var(--h-l);
+  padding: 0 var(--s-5);
+  background: var(--canvas);
+  box-shadow: inset 0 -1px 0 var(--line);
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  text-align: left;
+}
+
+.news-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  color: inherit;
+  font: inherit;
+}
+
+.news-sort:hover {
+  color: var(--ink);
+}
+
+.news-row td {
+  padding: var(--s-4) var(--s-5);
+  box-shadow: inset 0 -1px 0 var(--line);
+  transition: background-color var(--dur-fast) var(--ease);
+}
+
+.news-row td:first-child {
+  border-radius: var(--r-ml) 0 0 var(--r-ml);
+}
+
+.news-row td:last-child {
+  border-radius: 0 var(--r-ml) var(--r-ml) 0;
+}
+
+.news-row[data-opens]:hover td {
+  background: var(--hover);
+  box-shadow: none;
+}
+
+.news-row[data-opens] {
+  cursor: pointer;
+}
+
+.news-sender {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  width: 100%;
+  min-width: 0;
+  border-radius: var(--r-s);
+  color: inherit;
+  text-align: left;
+}
+
+.news-sender:disabled {
+  cursor: default;
+}
+
+.news-name,
+.news-subject,
+.news-sub {
+  display: block;
+}
+
+.news-name {
+  color: var(--ink);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+}
+
+.news-subject {
+  color: var(--ink-2);
+  font-size: var(--text-s);
+}
+
+.news-sub {
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+
+.news-inbox {
+  width: var(--w-news-inbox);
+  color: var(--ink-2);
+  font-size: var(--text-s);
+}
+
+.news-inbox-name {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+}
+
+/* Here it sits beside a name, not on the corner of an avatar. */
+.news-inbox-name .account-dot {
+  position: static;
+  flex-shrink: 0;
+  box-shadow: none;
+}
+
+.news-count {
+  width: var(--w-news-count);
+  color: var(--ink-2);
+  font-size: var(--text-s);
+  text-align: right;
+}
+
+.news-table th.news-count {
+  text-align: right;
+}
+
+.news-latest {
+  width: 32%;
+}
+
+.news-action {
+  width: var(--w-news-action);
+}
+
+.news-table .news-pick {
+  width: var(--h-l);
+  padding-right: 0;
+}
+
+/* Archiving shows with the row it's for, so the list stays quiet. */
+.news-archive {
+  display: inline-flex;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+.news-row:hover .news-archive,
+.news-archive:focus-within {
+  opacity: 1;
+}
+
+.news-bulk {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  padding: var(--s-3) var(--s-6);
+  border-bottom: 1px solid var(--line);
+  font-size: var(--text-s);
+}
+
+.news-action-inner {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--s-4);
+}
+
+.news-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--ink-3);
+  font-size: var(--text-s);
+  white-space: nowrap;
+}
+
+.news-status-done {
+  color: var(--ink-2);
+}
+
+/* An unsubscribe that didn't finish: said plainly, never put back as if nothing happened. */
+.news-status-warn {
+  display: inline-block;
+  max-width: var(--w-news-warn);
+  color: var(--danger);
+}
+
+.news-needs {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  margin: 0 var(--s-6) var(--s-4);
+  padding: var(--s-4) var(--s-4) var(--s-4) var(--s-6);
+  border-radius: var(--r-ml);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: var(--text-s);
+  font-weight: var(--weight-medium);
+}
+
+@container (max-width: 860px) {
+  .news-inbox {
+    display: none;
+  }
+}
+
+@container (max-width: 640px) {
+  .news-count,
+  .news-latest {
+    display: none;
+  }
+
+  .news-search {
+    width: 100%;
+  }
+}
+
+.health-bad {
+  color: var(--danger);
+}
+
+.tool-on {
+  color: var(--accent-text);
+}
+
+/* Finding within a conversation */
+.reader-find {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-6);
+  border-bottom: 1px solid var(--line);
+  background: var(--sunken);
+  font-size: var(--text-s);
+}
+
+.reader-find input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  outline: none;
+}
+
+.mail-text-link {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.mail-text mark {
+  border-radius: var(--r-xs);
+  background: var(--star);
+  color: var(--ink);
+}
+
+/* Trackers */
+.tracker-note {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: 0 var(--s-5) var(--s-3);
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+
+/* AI */
+.ai-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  margin: 0 0 var(--s-4);
+  padding: var(--s-4) var(--s-5);
+  border-radius: var(--r-m);
+  background: var(--accent-soft);
+  font-size: var(--text-s);
+}
+
+.ai-points {
+  margin: var(--s-2) 0;
+  padding-left: var(--s-5);
+}
+
+.ai-text {
+  white-space: pre-wrap;
+}
+
+.ask-headline {
+  font-size: var(--text-m);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-snug);
+}
+
+.ask-list {
+  overflow: hidden;
+  border-radius: var(--r-l);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+/* The right emails are there, and the answer about them is on its way. */
+.ask-list-waiting {
+  opacity: 0.6;
+}
+
+.ask-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  width: 100%;
+  padding: var(--s-4) var(--s-5);
+  font-size: var(--text-s);
+  text-align: left;
+}
+
+.ask-row + .ask-row {
+  border-top: 1px solid var(--line);
+}
+
+.ask-row:hover {
+  background: var(--hover);
+}
+
+.ask-row-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+}
+
+.ask-value {
+  flex-shrink: 0;
+  font-weight: var(--weight-semibold);
+}
+
+.translated {
+  margin: 0 var(--s-4) var(--s-4);
+  padding: var(--s-4);
+  border-radius: var(--r-m);
+  background: var(--sunken);
+  font-size: var(--text-s);
+  white-space: pre-wrap;
+}
+
+.ai-write {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-top: 1px solid var(--line);
+  background: var(--raised);
+  font-size: var(--text-s);
+}
+
+.ai-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.ai-write-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-2) var(--s-2) var(--s-4);
+  border-radius: var(--r-full);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+  transition: box-shadow var(--dur-fast) var(--ease);
+}
+
+/* Calm while typing: the Write button is what stands out, not the box. */
+.ai-write-row:focus-within {
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+
+.ai-write-row .btn {
+  border-radius: var(--r-full);
+}
+
+.brief-chip:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* A plain line of text inside the pill: none of a text box's own frame, focused or not. */
+.ai-write .ai-write-row input,
+.ai-write .ai-write-row input:focus {
+  flex: 1;
+  min-width: 0;
+  height: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--ink);
+  font: inherit;
+  outline: none;
+}
+
+/* While AI writes, nothing looks ready to type into. */
+.ai-write-row.is-busy,
+.ai-write-row.is-busy:focus-within {
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+/* The command bar */
+.scrim-top {
+  align-items: flex-start;
+}
+
+.command-bar {
+  width: var(--command-width);
+  margin-top: var(--command-top);
+  overflow: hidden;
+  border-radius: var(--r-l);
+  background: var(--raised);
+  box-shadow: var(--shadow-3);
+}
+
+.command-input {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-4) var(--s-5);
+  border-bottom: 1px solid var(--line);
+}
+
+.command-input input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  outline: none;
+}
+
+.command-list {
+  max-height: var(--command-list-height);
+  overflow-y: auto;
+  padding: var(--s-2);
+}
+
+.command-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-s);
+  font-size: var(--text-s);
+  text-align: left;
+}
+
+.command-row[aria-selected="true"] {
+  background: var(--selected);
+}
+
+.command-none {
+  padding: var(--s-5);
+  color: var(--ink-3);
+  font-size: var(--text-s);
+  text-align: center;
+}
+
+/* A long list stays light: rows out of view aren't laid out. */
+.thread {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 76px;
+}
+
+/* Printing */
+/* Off-screen rather than hidden, so emails inside it can measure their height. */
+.print-sheet {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  transform: translateX(-200%);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+@media print {
+  html.printing body > *:not(.print-sheet) {
+    display: none !important;
+  }
+
+  html.printing .print-sheet {
+    position: static;
+    transform: none;
+    visibility: visible;
+  }
+
+  .print-sheet h1 {
+    margin: 0 0 var(--s-5);
+    font-size: var(--text-l);
+  }
+
+  .print-sheet article {
+    margin-bottom: var(--s-6);
+  }
+
+  .print-head {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: var(--s-2);
+    font-size: var(--text-s);
+  }
+}
+
+/* The calendar */
+/* Takes the whole panel: there is no list and email side by side here. */
+.calendar {
+  display: flex;
+  grid-column: 1 / -1;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.calendar-month {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  border-right: 1px solid var(--line);
+}
+
+.calendar-head {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--s-5);
+  padding: var(--s-9) var(--s-8) var(--s-7);
+}
+
+.calendar-title {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-title);
+  white-space: nowrap;
+}
+
+.calendar-year {
+  color: var(--ink-3);
+  font-weight: var(--weight-regular);
+}
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: var(--s-1);
+  border-radius: var(--r-l);
+  background: var(--sunken);
+}
+
+.calendar-grid {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-rows: auto repeat(6, minmax(0, 1fr));
+  min-height: 0;
+  margin: 0 var(--s-8) var(--s-8);
+  overflow: hidden;
+  border-radius: var(--r-l);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.calendar-dayname {
+  padding: var(--s-4) var(--s-5);
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+}
+
+.calendar-cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+  padding: var(--s-3) var(--s-3) var(--s-3);
+  overflow: hidden;
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+  text-align: left;
+  font-size: var(--text-xs);
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.calendar-cell:nth-child(7n + 8) {
+  border-left: 0;
+}
+
+.calendar-cell[data-weekend],
+.calendar-dayname[data-weekend] {
+  background: var(--calendar-weekend);
+}
+
+.calendar-cell:hover {
+  background: var(--hover);
+}
+
+.calendar-cell[aria-selected="true"] {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+.calendar-date {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  min-width: var(--calendar-date);
+  height: var(--calendar-date);
+  margin-bottom: var(--s-1);
+  padding: 0 var(--s-2);
+  border-radius: var(--r-full);
+  color: var(--ink-2);
+  font-size: var(--text-s);
+  font-weight: var(--weight-medium);
+}
+
+.calendar-cell[data-other] .calendar-date {
+  color: var(--ink-4);
+}
+
+.calendar-cell[data-other] .calendar-chip {
+  opacity: 0.55;
+}
+
+.calendar-cell[data-today] .calendar-date {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: var(--weight-semibold);
+}
+
+.calendar-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+  height: var(--calendar-chip);
+  padding: 0 var(--s-3);
+  border-radius: var(--r-xs);
+  box-shadow: inset 2px 0 0 hsl(var(--h) var(--event-s) var(--event-l));
+  background: hsl(var(--h) var(--event-s) var(--event-l) / var(--event-chip-a));
+  color: hsl(var(--h) var(--event-s) var(--event-ink-l));
+  font-weight: var(--weight-medium);
+}
+
+.calendar-chip[data-all-day] {
+  box-shadow: none;
+  background: hsl(var(--h) var(--event-s) var(--event-l) / var(--event-chip-strong-a));
+}
+
+.calendar-chip-time {
+  flex-shrink: 0;
+  opacity: 0.75;
+  font-weight: var(--weight-regular);
+}
+
+.calendar-more {
+  padding: 0 var(--s-3);
+  color: var(--ink-3);
+  font-weight: var(--weight-medium);
+}
+
+.calendar-day {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: var(--s-6);
+  width: var(--calendar-side);
+  padding: var(--s-9) var(--s-8) var(--s-8);
+  overflow-y: auto;
+}
+
+.calendar-day-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding-bottom: var(--s-6);
+  border-bottom: 1px solid var(--line);
+}
+
+.calendar-day-weekday {
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+}
+
+.calendar-day-weekday[data-today] {
+  color: var(--accent-text);
+}
+
+.calendar-day-date {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-4);
+}
+
+.calendar-day-number {
+  font-size: var(--text-number);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-title);
+  line-height: 1;
+}
+
+.calendar-day-month {
+  color: var(--ink-2);
+  font-size: var(--text-s);
+}
+
+.calendar-problem {
+  padding: var(--s-4) var(--s-5);
+  border-radius: var(--r-m);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: var(--text-s);
+}
+
+.calendar-day-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-12) 0;
+  color: var(--ink-3);
+  text-align: center;
+}
+
+.calendar-day-empty .empty-icon {
+  margin-bottom: var(--s-2);
+}
+
+.calendar-agenda {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.calendar-agenda-label {
+  margin-top: var(--s-3);
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+}
+
+.calendar-agenda-label:first-child {
+  margin-top: 0;
+}
+
+.calendar-event {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  padding: var(--s-5) var(--s-5) var(--s-5) var(--s-4);
+  border-radius: var(--r-ml);
+  background: hsl(var(--h) var(--event-s) var(--event-l) / var(--event-card-a));
+  text-align: left;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.calendar-event:hover {
+  background: hsl(var(--h) var(--event-s) var(--event-l) / var(--event-chip-a));
+}
+
+.calendar-event[data-declined] .calendar-event-title {
+  color: var(--ink-3);
+  text-decoration: line-through;
+}
+
+.calendar-event-bar {
+  flex-shrink: 0;
+  align-self: stretch;
+  width: var(--s-2);
+  border-radius: var(--r-full);
+  background: hsl(var(--h) var(--event-s) var(--event-l));
+}
+
+.calendar-event-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+}
+
+.calendar-event-title {
+  color: var(--ink);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+}
+
+.calendar-event-meta {
+  color: var(--ink-3);
+  font-size: var(--text-s);
+}
+
+.calendar-connect {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-top: auto;
+  padding: var(--s-6);
+  border-radius: var(--r-l);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.calendar-connect-title {
+  font-size: var(--text-s);
+  font-weight: var(--weight-semibold);
+}
+
+.calendar-connect-text {
+  margin-bottom: var(--s-3);
+  color: var(--ink-3);
+  font-size: var(--text-s);
+}
+
+.calendar-connect-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  height: var(--h-l);
+  margin: 0 calc(var(--s-3) * -1);
+  padding: 0 var(--s-3);
+  border-radius: var(--r-m);
+  color: var(--ink-2);
+  font-size: var(--text-s);
+  text-align: left;
+}
+
+.calendar-connect-row:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.calendar-connect-go {
+  color: var(--accent-text);
+  font-weight: var(--weight-medium);
+}
+
+.invite-card {
+  display: flex;
+  gap: var(--s-4);
+  margin: 0 var(--s-4) var(--s-4);
+  padding: var(--s-4) var(--s-5);
+  border-radius: var(--r-m);
+  background: var(--accent-soft);
+  font-size: var(--text-s);
+}
+
+.invite-answers {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+
+/* Things only a phone needs. */
+.phone-only {
+  display: none !important;
+}
+
+/* A row whose control needs the full width sits under its label. */
+.group-row-stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--s-4);
+}
+
+/* Settings › Appearance: the two layouts, drawn small. */
+.layout-picker {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-5);
+  width: 100%;
+}
+
+.layout-option {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-4);
+  border-radius: var(--r-l);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--text-s);
+  text-align: left;
+  cursor: pointer;
+  transition: box-shadow var(--dur-fast) var(--ease);
+}
+
+.layout-option:hover {
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+
+.layout-option[aria-checked="true"] {
+  box-shadow: inset 0 0 0 2px var(--accent);
+  color: var(--ink);
+}
+
+.layout-option:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--accent), var(--ring);
+}
+
+.layout-label {
+  font-weight: var(--weight-medium);
+}
+
+.layout-sketch {
+  position: relative;
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  align-self: stretch;
+  gap: var(--s-2);
+  height: var(--h-layout-sketch);
+  padding: var(--s-2);
+  overflow: hidden;
+  border-radius: var(--r-m);
+  background: var(--canvas);
+}
+
+.sketch-side {
+  display: block;
+  flex: 0 0 18%;
+  border-radius: var(--r-s);
+  background: var(--sidebar);
+}
+
+.sketch-list {
+  display: flex;
+  flex: 0 0 34%;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-2);
+  border-radius: var(--r-s);
+  background: var(--raised);
+}
+
+.sketch-row {
+  display: block;
+  height: var(--s-3);
+  border-radius: var(--r-full);
+  background: var(--line-strong);
+}
+
+.sketch-reader {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border-radius: var(--r-s);
+  background: var(--raised);
+}
+
+.sketch-line {
+  display: block;
+  height: var(--s-2);
+  border-radius: var(--r-full);
+  background: var(--line-strong);
+}
+
+.sketch-title {
+  width: 60%;
+  height: var(--s-3);
+  background: var(--ink-4);
+}
+
+.sketch-short {
+  width: 45%;
+}
+
+/* Full width: the list takes the whole space, and an email opens on its own screen. */
+.layout-sketch[data-layout="full"] .sketch-list {
+  flex: 1;
+}
+
+.layout-sketch[data-layout="full"] .sketch-reader {
+  display: none;
+}
+
+/* The full-width layout, like Gmail: one line a row across the whole panel, and an open email
+   on its own screen in place of the list. Back (or Escape) returns to the list where it was. */
+@media (min-width: 761px) {
+  .app[data-layout="full"] {
+    position: relative;
+  }
+
+  .app[data-layout="full"] .main-panel {
+    position: relative;
+    display: block;
+  }
+
+  .app[data-layout="full"] .list,
+  .app[data-layout="full"] .calendar-month {
+    width: 100%;
+    height: 100%;
+    border-right: 0;
+  }
+
+  .app[data-layout="full"] .pane-reader {
+    display: none;
+  }
+
+  .app[data-layout="full"][data-pane="reader"] .pane-reader {
+    position: absolute;
+    inset: 0;
+    z-index: var(--z-popover);
+    display: block;
+    animation: panel-in var(--dur-base) var(--ease);
+  }
+
+  /* The list stays where it was underneath, so going back keeps your place. */
+  .app[data-layout="full"][data-pane="reader"] .list {
+    visibility: hidden;
+  }
+
+  .app[data-layout="full"] .reader-back {
+    display: inline-flex !important;
+  }
+
+  /* Choosing several puts one slim bar of actions over the top of the list, like Gmail. */
+  .app[data-layout="full"][data-picking] .main-panel {
+    position: relative;
+  }
+
+  /* What the bar covers would otherwise peek out from under it. */
+  .app[data-layout="full"][data-picking] .list-head {
+    visibility: hidden;
+  }
+
+  .app[data-layout="full"][data-picking] .pane-reader {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: auto;
+    left: 0;
+    z-index: var(--z-popover);
+    display: block;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    border-bottom: 1px solid var(--line);
+    background: var(--raised);
+    box-shadow: var(--shadow-1);
+    animation: none;
+  }
+
+  /* A title row like the header it covers, with what can be done on the row under it. */
+  .app[data-layout="full"][data-picking] .bulk {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-content: center;
+    align-items: baseline;
+    gap: var(--s-4) var(--s-3);
+    min-height: 0;
+    padding: var(--s-4) var(--s-8);
+    text-align: left;
+  }
+
+  .app[data-layout="full"][data-picking] .bulk-count,
+  .app[data-layout="full"][data-picking] .bulk .empty-title {
+    margin: 0;
+    font-size: var(--text-l);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--track-display);
+  }
+
+  .app[data-layout="full"][data-picking] .bulk-actions {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    gap: var(--s-3);
+    max-width: none;
+    margin: 0;
+  }
+
+  .app[data-layout="full"][data-picking] .bulk-clear {
+    grid-row: 1;
+    grid-column: 3;
+    margin: 0;
+  }
+
+  .app[data-layout="full"][data-picking] .bulk-hint {
+    display: none;
+  }
+
+  /* One line of title and search, so no more room above it than below. */
+  .app[data-layout="full"] .list-head {
+    padding-top: var(--s-6);
+    padding-bottom: var(--s-5);
+  }
+
+  /* On a wide list the tabs are part of the page, like Gmail's: words on a hairline, with the
+     chosen one underlined in the brand colour, instead of a separate box. */
+  .app[data-layout="full"] .tabs {
+    gap: var(--s-2);
+    margin: 0 var(--s-8);
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: inset 0 -1px 0 var(--line);
+  }
+
+  .app[data-layout="full"] .tab {
+    flex: 0 0 auto;
+    /* A little more room under the words, above the line. */
+    height: calc(var(--h-xl) + var(--s-2));
+    padding-bottom: var(--s-2);
+    padding-right: var(--s-6);
+    padding-left: var(--s-6);
+    border-radius: 0;
+    font-size: var(--text-base);
+  }
+
+  .app[data-layout="full"] .tab:hover {
+    background: none;
+    color: var(--ink);
+  }
+
+  .app[data-layout="full"] .tab[aria-selected="true"] {
+    background: none;
+    box-shadow: inset 0 calc(var(--w-bar) * -1) 0 var(--accent);
+    color: var(--ink);
+  }
+
+  .app[data-layout="full"] .tab[aria-selected="true"] .tab-count {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+}
+
+@keyframes panel-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app[data-layout="full"][data-pane="reader"] .pane-reader {
+    animation: none;
+  }
+}
+
+/* One line a row: who, the subject with its preview, then the time. */
+.thread-one-line {
+  grid-template-columns: var(--avatar-s) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--s-5);
+  padding-top: var(--s-4);
+  padding-bottom: var(--s-4);
+}
+
+.thread-one-line .thread-avatar {
+  width: var(--avatar-s);
+  height: var(--avatar-s);
+}
+
+.thread-one-line .unread-bar {
+  top: var(--s-4);
+  bottom: var(--s-4);
+}
+
+.thread-one {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  min-width: 0;
+}
+
+.thread-one .thread-from {
+  display: flex;
+  flex: 0 0 var(--w-row-from);
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.thread-one .thread-text {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.thread-one .thread-subject,
+.thread-one .thread-snippet {
+  display: inline;
+  margin: 0;
+}
+
+.thread-one .thread-subject {
+  font-size: var(--text-s);
+}
+
+.thread-one .thread-snippet::before {
+  content: "  ";
+  white-space: pre;
+}
+
+.thread-one .thread-time {
+  min-width: var(--w-row-time);
+  text-align: right;
+}
+
+.thread-one .pill {
+  flex-shrink: 0;
+}
+
+.thread-one-line .thread-quick {
+  margin: 0;
+}
+
+/* Today's calendar, along the top of the full-width list. */
+.today-strip {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--s-3);
+  margin: 0 var(--s-8) var(--s-5);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.today-event {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--s-4);
+  max-width: var(--w-today-event);
+  padding: var(--s-3) var(--s-4) var(--s-3) var(--s-5);
+  border-radius: var(--r-m);
+  background: var(--raised);
+  box-shadow: inset var(--w-bar) 0 0 hsl(var(--h) var(--account-dot-s) var(--account-dot-l)), inset 0 0 0 1px var(--line);
+}
+
+.today-event[data-now] {
+  background: var(--accent-soft);
+}
+
+.today-event-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.today-event-when {
+  color: var(--ink-3);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.today-event[data-now] .today-event-when {
+  color: var(--accent);
+  font-weight: var(--weight-semibold);
+}
+
+.today-event-title {
+  color: var(--ink);
+  font-size: var(--text-s);
+  font-weight: var(--weight-medium);
+}
+
+/* The sidebar as a narrow rail of icons. A phone always shows all of it. */
+@media (min-width: 761px) {
+  .app[data-rail] {
+    grid-template-columns: var(--w-rail) minmax(0, 1fr);
+  }
+
+  .app[data-rail] .sidebar-head {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-2);
+    height: auto;
+    padding: var(--h-3xl) 0 var(--s-4);
+  }
+
+  .app[data-rail] .nav-arrows {
+    margin: 0;
+  }
+
+  .app[data-rail] .nav-grip {
+    display: none;
+  }
+
+  .app[data-rail] .switcher-row {
+    display: flex;
+    justify-content: center;
+    margin: 0 0 var(--s-4);
+  }
+
+  .app[data-rail] .switcher {
+    justify-content: center;
+    width: var(--h-xl);
+    padding: 0;
+  }
+
+  .app[data-rail] .switcher-name,
+  .app[data-rail] .switcher-arrow,
+  .app[data-rail] .compose-btn span,
+  .app[data-rail] .nav-item .truncate-1,
+  .app[data-rail] .nav-label-row > *,
+  .app[data-rail] .sidebar-download-text,
+  .app[data-rail] .sidebar-download-toggle,
+  .app[data-rail] .profile-btn .grow,
+  .app[data-rail] .profile-btn .muted {
+    display: none;
+  }
+
+  .app[data-rail] .compose-btn {
+    justify-content: center;
+    width: var(--h-xl);
+    height: var(--h-xl);
+    margin: 0 auto var(--s-6);
+    padding: 0;
+  }
+
+  .app[data-rail] .nav-scroll {
+    padding-inline: var(--s-6);
+    scrollbar-width: none;
+  }
+
+  .app[data-rail] .nav-item {
+    position: relative;
+    justify-content: center;
+    width: var(--h-xl);
+    margin-inline: auto;
+    padding: 0;
+  }
+
+  /* A count has no room here, so it's only a dot, and the tooltip says how many. */
+  .app[data-rail] .nav-count {
+    position: absolute;
+    top: var(--s-2);
+    right: var(--s-2);
+    width: var(--s-3);
+    height: var(--s-3);
+    margin: 0;
+    border-radius: var(--r-full);
+    background: var(--ink-3);
+    font-size: 0;
+  }
+
+  .app[data-rail] .nav-count-unread {
+    min-width: 0;
+    padding: 0;
+    background: var(--accent);
+  }
+
+  .app[data-rail] .nav-label-row {
+    height: 1px;
+    margin: var(--s-4) var(--s-3);
+    padding: 0;
+    background: var(--line);
+  }
+
+  .app[data-rail] .profile-btn {
+    justify-content: center;
+    width: var(--h-xl);
+    height: var(--h-xl);
+    margin-inline: auto;
+    padding: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  :root {
+    --calendar-side: 100%;
+  }
+
+  .sidebar-toggle,
+  .composer-expand {
+    display: none;
+  }
+
+  body {
+    box-sizing: border-box;
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+  }
+
+  .phone-only {
+    display: inline-flex !important;
+  }
+
+  .app {
+    display: block;
+    height: 100%;
+    padding: 0;
+  }
+
+  .main-panel {
+    display: block;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .sidebar {
+    display: none;
+    width: 100%;
+    height: 100%;
+  }
+
+  .app[data-pane="nav"] .sidebar {
+    display: flex;
+  }
+
+  .app[data-pane="nav"] .main-panel {
+    display: none;
+  }
+
+  .list,
+  .calendar-month {
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+
+  .pane-reader {
+    display: none;
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+  }
+
+  .app[data-pane="reader"] .list,
+  .app[data-pane="reader"] .calendar {
+    display: none;
+  }
+
+  .app[data-pane="reader"] .pane-reader {
+    display: block;
+  }
+
+  /* Choosing several stays on the list, with the actions in a sheet along the bottom. */
+  .app[data-picking] .pane-reader {
+    display: block;
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: var(--z-popover);
+    height: auto;
+    padding-bottom: var(--safe-bottom);
+    background: var(--raised);
+    border-top: 1px solid var(--line);
+    box-shadow: var(--shadow-3);
+  }
+
+  .app[data-picking] .bulk {
+    min-height: 0;
+    padding: var(--s-5);
+  }
+
+  .app[data-picking] .bulk-count {
+    font-size: var(--text-l);
+  }
+
+  .app[data-picking] .bulk-actions,
+  .app[data-picking] .bulk-clear {
+    margin-top: var(--s-4);
+  }
+
+  .app[data-picking] .bulk-hint {
+    display: none;
+  }
+
+  .app[data-picking] .list-scroll {
+    padding-bottom: var(--phone-sheet-room);
+  }
+
+  .reader-bar {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .reader-body {
+    padding-right: var(--s-4);
+    padding-left: var(--s-4);
+  }
+
+  .composer:not(.composer-inline) {
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    border-radius: 0;
+  }
+
+  .settings {
+    display: block;
+  }
+
+  body:has(.settings) .scrim {
+    padding-left: var(--s-10);
+  }
+
+  .settings-nav {
+    width: 100%;
+    height: 100%;
+  }
+
+  .settings-page {
+    display: none;
+    height: 100%;
+    overflow-y: auto;
+  }
+
+  .settings[data-phone-page] .settings-nav {
+    display: none;
+  }
+
+  .settings[data-phone-page] .settings-page {
+    display: block;
+  }
+
+  .settings-bar {
+    justify-content: space-between;
+  }
+
+  .calendar {
+    display: block;
+    height: 100%;
+    overflow-y: auto;
+  }
+
+  .calendar-month {
+    height: auto;
+  }
+
+  .calendar-grid {
+    height: var(--calendar-phone-grid);
+  }
+
+  .calendar-chip {
+    display: none;
+  }
+
+  .calendar-head {
+    flex-wrap: wrap;
+    padding: var(--s-6) var(--s-5);
+  }
+
+  .calendar-grid {
+    margin: 0 var(--s-5) var(--s-5);
+  }
+
+  .calendar-day {
+    width: 100%;
+    padding: var(--s-6) var(--s-5);
+  }
+
+  .group-row {
+    flex-wrap: wrap;
+  }
+
+  input,
+  textarea,
+  select {
+    /* Anything smaller makes the phone zoom in when it's tapped. */
+    font-size: var(--text-phone-input);
+  }
+}
+
+/* Touch has no hover, so these would only get in the way. */
+@media (hover: none) {
+  .thread-quick {
+    display: none !important;
+  }
+}
+
+/* Settings › AI apps */
+.link-on {
+  color: var(--success);
+}
+
+.setup-code {
+  margin: 0;
+  padding: var(--s-7);
+  border-radius: var(--r-l);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+  overflow-x: auto;
+  white-space: pre;
+  user-select: text;
+  -webkit-user-select: text;
+  font: var(--weight-regular) var(--text-xs) / 1.6 var(--font-mono);
+}
+
+/* An AI app asking to send an email */
+.send-ask-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+  color: var(--accent);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+.send-ask-dialog .dialog-foot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-3);
+  padding: 0 var(--s-9) var(--s-9);
+  border-top: 0;
+  background: none;
+}
+
+.send-ask-dialog .dialog-foot .btn {
+  justify-content: center;
+  width: 100%;
+}
+
+.send-ask {
+  overflow: hidden;
+  border-radius: var(--r-l);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.send-ask-people {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  align-items: center;
+  gap: var(--s-3) var(--s-5);
+  margin: 0;
+  padding: var(--s-5) var(--s-6);
+  border-bottom: 1px solid var(--line);
+  font-size: var(--text-s);
+}
+
+.send-ask-people dt {
+  color: var(--ink-3);
+}
+
+.send-ask-people dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-4);
+  min-width: 0;
+  margin: 0;
+}
+
+.send-ask-person {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.send-ask-mail {
+  padding: var(--s-5) var(--s-6) var(--s-6);
+}
+
+.send-ask-subject {
+  margin-bottom: var(--s-3);
+  font-weight: var(--weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.send-ask-text {
+  max-height: var(--h-send-ask);
+  overflow-y: auto;
+  color: var(--ink-2);
+  font-size: var(--text-s);
+  line-height: var(--leading-read);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.send-ask-quote-label {
+  margin: var(--s-4) 0 var(--s-2);
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+
+.send-ask-quote {
+  padding-left: var(--s-3);
+  border-left: 2px solid var(--line);
+}
+
+/* Today's summary and quick answers */
+.brief {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-6);
+  border-bottom: 1px solid var(--line);
+  font-size: var(--text-s);
+}
+
+.brief-title {
+  font-weight: var(--weight-semibold);
+}
+
+/* The AI's few sentences on today, on a line of their own above the chips. */
+.brief-ai {
+  display: flex;
+  flex: 1 1 0;
+  min-width: 60%;
+  align-items: baseline;
+  gap: var(--s-2);
+  line-height: var(--leading-body);
+}
+
+.brief-chip {
+  padding: var(--s-1) var(--s-4);
+  border-radius: var(--r-full);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.brief .brief-chip {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.brief-chip:hover {
+  background: var(--hover);
+}
+
+.brief-close {
+  display: inline-flex;
+  margin-left: auto;
+  padding: var(--s-1);
+  border-radius: var(--r-s);
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.brief-close:hover {
+  background: var(--hover);
+}
+
+.clean-up-list {
+  max-height: var(--h-send-ask);
+  overflow-y: auto;
+}
+
+/* One-tap answers under an email that's waiting on you. */
+.quick-answers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+  margin-top: var(--s-6);
+}
+
+.quick-answers-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-right: var(--s-2);
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.quick-answers-waiting {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--ink-3);
+  font-size: var(--text-s);
+}
+
+.quick-answer {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: var(--h-l);
+  padding: 0 var(--s-5);
+  border-radius: var(--r-full);
+  background: var(--btn-secondary-fill);
+  box-shadow: var(--btn-secondary-shadow);
+  color: var(--btn-secondary-ink);
+  font: inherit;
+  font-size: var(--text-s);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease);
+}
+
+.quick-answer:hover {
+  background: var(--hover);
+}
+
+.quick-answer .icon {
+  color: var(--accent);
+}
+
+/* A short reply written for this email: as long as it needs, never wider than the email. */
+.quick-answer-text {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.reply-help {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  margin-bottom: var(--s-4);
+}
+
+.reply-ready {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-5);
+  border-radius: var(--r-l);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.reply-ready-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mail-frame-waiting {
+  visibility: hidden;
+}
+
+/* A conversation's summary, read at a glance */
+.summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  margin: var(--s-6) 0 var(--s-6);
+  padding: var(--s-5) var(--s-6) var(--s-6);
+  border-radius: var(--r-xl);
+  background: var(--raised);
+  box-shadow: var(--shadow-card), inset 0 0 0 1px var(--accent-soft-2);
+}
+
+.summary-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  color: var(--accent-text);
+}
+
+.summary-label {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-key);
+  text-transform: uppercase;
+}
+
+.summary-text {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-m);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-snug);
+}
+
+.summary-points {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ink-2);
+  font-size: var(--text-base);
+  line-height: var(--leading-snug);
+}
+
+.summary-points li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-4);
+  padding-left: var(--s-2);
+}
+
+.summary-points li::before {
+  content: "";
+  flex-shrink: 0;
+  margin-top: var(--s-4);
+  width: var(--s-2);
+  height: var(--s-2);
+  border-radius: var(--r-full);
+  background: var(--accent);
+}
+
+.summary-next {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--line);
+  color: var(--ink);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+}
+
+.summary-next svg {
+  flex-shrink: 0;
+  color: var(--accent-text);
+}
+
+/* ---------- The person's own tags ---------- */
+
+/* Each colour is a hue; the light and dark settings are the avatars' own. */
+[data-colour="gray"] { --h: 230; --tag-s: 0.08; }
+[data-colour="red"] { --h: 4; }
+[data-colour="orange"] { --h: 26; }
+[data-colour="yellow"] { --h: 46; }
+[data-colour="green"] { --h: 142; }
+[data-colour="teal"] { --h: 178; }
+[data-colour="blue"] { --h: 220; }
+[data-colour="purple"] { --h: 268; }
+[data-colour="pink"] { --h: 326; }
+
+.tag-pill {
+  gap: var(--s-2);
+  color: hsl(var(--h) var(--avatar-ink-s) var(--avatar-ink-l));
+  background: hsl(var(--h) var(--avatar-bg-s) var(--avatar-bg-l));
+  filter: saturate(var(--tag-s));
+}
+
+.tag-amount-text {
+  opacity: 0.8;
+}
+
+.tag-dot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: var(--s-5);
+  height: var(--s-5);
+  border-radius: var(--r-full);
+  background: hsl(var(--h) var(--tag-dot-s) var(--tag-dot-l));
+  filter: saturate(var(--tag-s));
+}
+
+.nav-tag-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--h-2xs);
+}
+
+.reader-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.reader-tags .pill {
+  margin-left: 0;
+}
+
+.tag-list {
+  display: grid;
+  gap: var(--s-3);
+  margin-bottom: var(--s-8);
+}
+
+.tag-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  min-height: var(--h-l);
+}
+
+.tag-amount.input {
+  width: var(--w-chip-input);
+  height: var(--h-m);
+}
+
+.tag-new {
+  display: grid;
+  gap: var(--s-5);
+  justify-items: start;
+}
+
+.tag-colours {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-4);
+}
+
+.tag-swatch {
+  width: var(--h-xs);
+  height: var(--h-xs);
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-full);
+  background: hsl(var(--h) var(--tag-dot-s) var(--tag-dot-l));
+  filter: saturate(var(--tag-s));
+  cursor: pointer;
+}
+
+.tag-swatch[aria-checked="true"] {
+  box-shadow: 0 0 0 2px var(--raised), 0 0 0 4px var(--ink-2);
+}
+
+.tag-swatch:focus-visible {
+  box-shadow: var(--ring);
+}
+
+/* ---------- Files and links in a conversation ---------- */
+
+.shared-section {
+  display: grid;
+  gap: var(--s-4);
+}
+
+.shared-section + .shared-section {
+  margin-top: var(--s-8);
+}
+
+.shared-head {
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-key);
+  text-transform: uppercase;
+}
+
+.files.shared-files {
+  padding: 0;
+}
+
+.shared-links {
+  display: grid;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shared-link {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  min-width: 0;
+  padding: var(--s-4);
+  border-radius: var(--r-ml);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.shared-link:hover {
+  background: var(--hover);
+}
+
+.shared-link:focus-visible {
+  box-shadow: var(--ring);
+  outline: none;
+}
+
+.shared-link .icon {
+  flex-shrink: 0;
+  color: var(--ink-3);
+}
+
+.shared-link .grow {
+  display: grid;
+  min-width: 0;
+}
+
+.shared-link-text {
+  font-size: var(--text-s);
+  font-weight: var(--weight-medium);
+}
+
+.explain-watch .icon {
+  color: var(--danger);
+}
+
+.group-row.style-row {
+  display: grid;
+  gap: var(--s-5);
+  align-items: stretch;
+}
+
+textarea.input.style-profile {
+  resize: vertical;
+}
+
+/* ---------- Follow-ups ---------- */
+
+.follow-step {
+  display: grid;
+  gap: var(--s-4);
+  margin: 0;
+  padding: var(--s-6);
+  border: 0;
+  border-radius: var(--r-ml);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.follow-step-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-4);
+}
+
+.follow-step-head legend {
+  float: left;
+  margin: 0;
+  padding: 0;
+}
+
+.follow-days {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.follow-days .input {
+  width: var(--h-4xl);
+  height: var(--h-m);
+  text-align: center;
+}
+
+.follow-step-ai {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+}
+
+.follow-add {
+  justify-self: start;
+}
+
+/* The rule that matters most, said first: a reply stops everything. */
+.follow-stops {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-4) var(--s-6);
+  border-radius: var(--r-ml);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: var(--text-s);
+  font-weight: var(--weight-medium);
+}
+
+.follow-count {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-4);
+}
+
+.follow-count-input {
+  width: var(--h-5xl);
+  height: var(--h-m);
+  text-align: center;
+}
+
+.follow-date {
+  justify-self: start;
+  height: var(--h-m);
+}
+
+.follow-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  margin-top: var(--s-5);
+  padding: var(--s-4) var(--s-6);
+  border-radius: var(--r-ml);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: var(--text-s);
+}
+
+.follow-bar .btn {
+  margin-left: auto;
+}
+
+.follow-pick {
+  display: grid;
+  gap: var(--s-5);
+}
+
+.follow-pick-text {
+  display: grid;
+}
+
+/* While the AI writes a reply: say so, so the empty box doesn't look stuck. */
+.ai-writing {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  margin: 0 var(--s-3) var(--s-2);
+  border-radius: var(--r-m);
+  background: var(--accent-soft);
+  color: var(--ink-2);
+  font-size: var(--text-s);
+}
+
+/* A new version is downloaded: a quiet note above the account button. */
+.update-note {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-bottom: var(--s-3);
+  padding: var(--s-2) var(--s-2) var(--s-2) var(--s-4);
+  border-radius: var(--r-m);
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-size: var(--text-s);
+}
+
+.update-note-rail {
+  justify-content: center;
+  width: 100%;
+  padding: var(--s-3);
+  border: 0;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+/* The rest: what the tab holds, and two clear ways to get rid of it. */
+.rest-bar .brief-chip {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+/* An attachment looked at without saving it. */
+.preview-image {
+  display: block;
+  max-width: 100%;
+  max-height: var(--preview-h);
+  margin: 0 auto;
+  border-radius: var(--r-s);
+}
+
+.preview-pdf {
+  display: block;
+  width: 100%;
+  height: var(--preview-h);
+  border: 0;
+  border-radius: var(--r-s);
+  background: var(--canvas);
+}
+
+.preview-text {
+  max-height: var(--preview-h);
+  margin: 0;
+  overflow: auto;
+  font: var(--text-s) / var(--leading-body) var(--font-mono);
+  white-space: pre-wrap;
+}
+
+/* Pasted keys and other text that has to be exact. */
+.mono-input {
+  width: 100%;
+  font: var(--text-s) / var(--leading-body) var(--font-mono);
+  resize: vertical;
+}
+
+/* Contacts: a list beside the person picked. */
+.contacts-search {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: 0 var(--s-5) var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-m);
+  background: var(--sunken);
+  color: var(--ink-3);
+}
+
+.contacts-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  outline: none;
+}
+
+.contacts-note,
+.contacts-empty {
+  margin: 0 var(--s-5) var(--s-3);
+}
+
+.contacts-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  padding: var(--s-3) var(--s-5);
+  text-align: left;
+}
+
+.contacts-row:hover {
+  background: var(--hover);
+}
+
+.contacts-row-on {
+  background: var(--accent-soft);
+}
+
+.contacts-name {
+  display: block;
+  font-weight: var(--weight-semibold);
+}
+
+.contacts-meta {
+  display: block;
+  color: var(--ink-3);
+  font-size: var(--text-s);
+}
+
+/* Column names over the list, as in Newsletters. */
+.contacts-cols {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  height: var(--h-l);
+  padding: 0 var(--s-5);
+  background: var(--canvas);
+  box-shadow: inset 0 -1px 0 var(--line);
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.contacts-count {
+  flex-shrink: 0;
+  width: var(--w-news-count);
+  color: var(--ink-2);
+  font-size: var(--text-s);
+  text-align: right;
+}
+
+.contacts-cols .contacts-count {
+  color: inherit;
+  font-size: inherit;
+}
+
+.contacts-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.contacts-notes {
+  white-space: pre-wrap;
+}
+
+.contacts-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+/* Unsubscribing from many at once: who, then what happens, one line each. */
+.unsub-dialog .dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-7);
+}
+
+.unsub-who {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  min-width: 0;
+}
+
+.unsub-faces {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.unsub-faces > * {
+  box-shadow: 0 0 0 2px var(--raised);
+}
+
+.unsub-faces > * + * {
+  margin-left: calc(var(--s-3) * -1);
+}
+
+.unsub-names {
+  color: var(--ink-2);
+  font-size: var(--text-s);
+}
+
+.unsub-plan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.unsub-plan li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-6);
+}
+
+.unsub-icon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--h-l);
+  height: var(--h-l);
+  border-radius: var(--r-m);
+  background: var(--sunken);
+  color: var(--ink-2);
+}
+
+.unsub-icon[data-tone="good"] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.unsub-icon[data-tone="warn"] {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.unsub-line {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding-top: var(--s-1);
+}
+
+.unsub-line-title {
+  color: var(--ink);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+}
+
+.unsub-line-help {
+  color: var(--ink-3);
+  font-size: var(--text-s);
+}
+
+.unsub-archive {
+  display: flex;
+  align-items: center;
+  gap: var(--s-6);
+  padding-top: var(--s-7);
+  border-top: 1px solid var(--line);
+  color: var(--ink);
+  font-size: var(--text-base);
+}
+
+/* A deleted email goes out as a letter: a sheet rises in 3D, folds in half and flies to the
+   bottom-right corner. Moved by fly.ts. */
+.fly {
+  position: fixed;
+  top: var(--fly-y);
+  left: var(--fly-x);
+  z-index: var(--z-toast);
+  width: 0;
+  height: 0;
+  perspective: var(--fly-depth);
+  pointer-events: none;
+}
+
+.fly-sheet {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--fly-sheet-w);
+  height: var(--fly-sheet-h);
+  transform-style: preserve-3d;
+  will-change: transform, opacity;
+}
+
+.fly-sheet[data-stack]::before {
+  position: absolute;
+  inset: var(--s-3) calc(var(--s-3) * -1) calc(var(--s-3) * -1) var(--s-3);
+  border-radius: var(--r-s);
+  background: var(--fly-paper-back);
+  content: "";
+  transform: translateZ(-1px);
+}
+
+.fly-half {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 50%;
+  transform-style: preserve-3d;
+}
+
+.fly-half-top {
+  top: 0;
+  z-index: 1;
+  transform-origin: bottom center;
+}
+
+.fly-half-bottom {
+  top: 50%;
+}
+
+.fly-face,
+.fly-back {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  background: var(--fly-paper);
+}
+
+.fly-face {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--s-3);
+  padding: 0 var(--s-6);
+}
+
+.fly-half-top .fly-face,
+.fly-half-top .fly-back {
+  border-radius: var(--r-s) var(--r-s) 0 0;
+}
+
+.fly-half-top .fly-face {
+  box-shadow: 0 -6px 16px -8px var(--fly-shadow);
+}
+
+.fly-half-bottom .fly-face {
+  border-radius: 0 0 var(--r-s) var(--r-s);
+  box-shadow: inset 0 1px 0 var(--fly-crease), 0 12px 20px -6px var(--fly-shadow);
+}
+
+.fly-back {
+  background: var(--fly-paper-back);
+  transform: rotateX(180deg);
+}
+
+.fly-title {
+  overflow: hidden;
+  color: var(--fly-ink);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.fly-line {
+  height: var(--fly-line);
+  border-radius: var(--r-full);
+  background: var(--fly-line-ink);
+}
+
+.fly-line-short {
+  width: 60%;
+}
+
+.fly-count {
+  position: absolute;
+  top: calc(var(--s-4) * -1);
+  right: calc(var(--s-4) * -1);
+  min-width: var(--h-xs);
+  height: var(--h-xs);
+  padding: 0 var(--s-3);
+  border-radius: var(--r-full);
+  background: var(--danger);
+  color: var(--accent-ink-on-color);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  line-height: var(--h-xs);
+  text-align: center;
+  transform: translateZ(2px);
+}
+
+/* Ask: chat with the inbox. One calm column: their questions on the right, answers on the
+   left led by the key fact, then the points, then the emails they came from. */
+.chat {
+  display: flex;
+  grid-column: 1 / -1;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.chat-head {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--s-6);
+  padding: var(--s-9) var(--s-8) var(--s-6);
+}
+
+.chat-title {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-title);
+}
+
+.chat-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.chat-thread {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-11);
+  max-width: var(--w-chat);
+  margin: 0 auto;
+  padding: var(--s-6) var(--s-8) var(--s-12);
+}
+
+.chat-turn-me {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.chat-bubble {
+  max-width: 78%;
+  padding: var(--s-5) var(--s-7);
+  border-radius: var(--r-2xl) var(--r-2xl) var(--r-s) var(--r-2xl);
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-size: var(--text-read);
+  line-height: var(--leading-read);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.chat-turn-ai {
+  display: grid;
+  grid-template-columns: var(--h-l) minmax(0, 1fr);
+  gap: var(--s-6);
+  align-items: start;
+}
+
+.chat-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--h-l);
+  height: var(--h-l);
+  border-radius: var(--r-full);
+  background: var(--btn-primary-fill);
+  color: var(--btn-primary-ink);
+}
+
+.chat-ai {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-7);
+  min-width: 0;
+  padding-top: var(--s-2);
+}
+
+.chat-answer {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-read);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-read);
+}
+
+/* A line about the answer itself, quieter than it. */
+.chat-note {
+  margin: var(--s-2) 0 0;
+  color: var(--ink-3);
+  font-size: var(--text-s);
+}
+
+.chat-points {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chat-points li {
+  position: relative;
+  padding-left: var(--s-8);
+  color: var(--ink-2);
+  font-size: var(--text-base);
+  line-height: var(--leading-read);
+}
+
+.chat-points li::before {
+  position: absolute;
+  top: calc(var(--leading-read) * 0.5em - var(--s-1));
+  left: var(--s-2);
+  width: var(--s-3);
+  height: var(--s-3);
+  border-radius: var(--r-full);
+  background: var(--accent);
+  content: "";
+}
+
+.chat-cite {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--h-2xs);
+  height: var(--h-2xs);
+  margin-left: var(--s-2);
+  padding: 0 var(--s-2);
+  border-radius: var(--r-full);
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--accent-text);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  vertical-align: text-top;
+}
+
+.chat-cite:hover {
+  background: var(--accent-soft);
+}
+
+.chat-key {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.chat-key-card {
+  display: flex;
+  align-items: center;
+  gap: var(--s-6);
+  min-width: 0;
+  padding: var(--s-5) var(--s-6);
+  border-radius: var(--r-l);
+  background: var(--raised);
+  box-shadow: inset 0 0 0 1px var(--line), var(--shadow-1);
+  color: var(--ink-3);
+  text-align: left;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.chat-key-card:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.chat-key-subject {
+  color: var(--ink);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+}
+
+.chat-sources-label {
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+}
+
+.chat-sources {
+  margin-top: calc(var(--s-3) * -1);
+}
+
+.chat-sources-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-4);
+  margin-left: calc(var(--s-4) * -1);
+  border-radius: var(--r-m);
+  color: var(--ink-3);
+  font-size: var(--text-s);
+  font-weight: var(--weight-medium);
+  list-style: none;
+  cursor: default;
+}
+
+.chat-sources-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.chat-sources-toggle:hover {
+  background: var(--hover);
+  color: var(--ink-2);
+}
+
+.chat-sources-toggle svg {
+  transform: rotate(-90deg);
+  transition: transform var(--dur-fast) var(--ease);
+}
+
+.chat-sources[open] .chat-sources-toggle svg,
+.chat-maybe[open] .chat-sources-toggle svg {
+  transform: none;
+}
+
+/* The toggle sits as a line under the list, like the sources one; it doesn't stretch. */
+.chat-maybe > .chat-sources-toggle {
+  align-self: flex-start;
+}
+
+.chat-source-rows {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--s-3);
+  border-radius: var(--r-l);
+  box-shadow: inset 0 0 0 1px var(--line);
+  overflow: hidden;
+}
+
+.chat-source-row {
+  display: grid;
+  grid-template-columns: var(--h-xs) minmax(0, 2fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-5);
+  padding: var(--s-4) var(--s-6);
+  border-top: 1px solid var(--line);
+  text-align: left;
+}
+
+.chat-source-row:first-child {
+  border-top: 0;
+}
+
+.chat-source-row:hover {
+  background: var(--hover);
+}
+
+.chat-source-n {
+  flex-shrink: 0;
+  min-width: var(--h-2xs);
+  color: var(--accent-text);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  text-align: center;
+}
+
+.chat-cite-more {
+  color: var(--ink-3);
+}
+
+.chat-source-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+}
+
+.chat-source-subject {
+  color: var(--ink);
+  font-size: var(--text-s);
+  font-weight: var(--weight-medium);
+}
+
+.chat-source-meta {
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+
+.chat-tools {
+  display: flex;
+  gap: var(--s-2);
+  margin: calc(var(--s-4) * -1) 0 0 calc(var(--s-4) * -1);
+  color: var(--ink-3);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+/* Only there when pointing at the answer, or when reached with the keyboard. */
+.chat-turn-ai:hover .chat-tools,
+.chat-tools:focus-within {
+  opacity: 1;
+}
+
+.chat-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+}
+
+.chat-suggestion {
+  padding: var(--s-3) var(--s-6);
+  border-radius: var(--r-full);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  color: var(--ink-2);
+  font-size: var(--text-s);
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.chat-suggestion:hover {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.chat-working {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  color: var(--ink-3);
+  font-size: var(--text-base);
+}
+
+.chat-dots {
+  display: inline-flex;
+  gap: var(--s-2);
+}
+
+.chat-dots > span {
+  width: var(--s-3);
+  height: var(--s-3);
+  border-radius: var(--r-full);
+  background: var(--accent);
+  animation: chat-dot 1.2s var(--ease) infinite;
+}
+
+.chat-dots > span:nth-child(2) {
+  animation-delay: var(--dur-base);
+}
+
+.chat-dots > span:nth-child(3) {
+  animation-delay: calc(var(--dur-base) * 2);
+}
+
+@keyframes chat-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(calc(var(--s-1) * -1));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-dots > span {
+    animation: none;
+  }
+}
+
+.chat-failed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-5);
+  padding: var(--s-5) var(--s-6);
+  border-radius: var(--r-l);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: var(--text-s);
+}
+
+.chat-start {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--s-13) 0 var(--s-8);
+  text-align: center;
+}
+
+/* An empty chat sits in the middle of the pane, not at its top. */
+.chat-thread:has(> .chat-start) {
+  min-height: 100%;
+  justify-content: center;
+}
+
+.chat-thread > .chat-start {
+  padding: 0;
+}
+
+.chat-start-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--h-5xl);
+  height: var(--h-5xl);
+  margin-bottom: var(--s-8);
+  border-radius: var(--r-xl);
+  background: var(--btn-primary-fill);
+  box-shadow: var(--btn-primary-shadow);
+  color: var(--btn-primary-ink);
+}
+
+.chat-start-title {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-title);
+}
+
+.chat-start-text {
+  max-width: var(--w-text-narrow);
+  margin: var(--s-4) 0 var(--s-11);
+  color: var(--ink-3);
+  font-size: var(--text-base);
+  line-height: var(--leading-read);
+}
+
+.chat-starters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-5);
+  width: 100%;
+}
+
+.chat-starter {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  padding: var(--s-6) var(--s-7);
+  border-radius: var(--r-l);
+  background: var(--raised);
+  box-shadow: inset 0 0 0 1px var(--line), var(--shadow-1);
+  color: var(--ink-2);
+  font-size: var(--text-s);
+  text-align: left;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.chat-starter svg {
+  flex-shrink: 0;
+  color: var(--accent-text);
+}
+
+.chat-starter:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.chat-compose {
+  flex-shrink: 0;
+  padding: 0 var(--s-8) var(--s-6);
+}
+
+.chat-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  max-width: var(--w-chat);
+  margin: 0 auto;
+  padding: var(--s-3) var(--s-3) var(--s-3) var(--s-8);
+  border-radius: var(--r-2xl);
+  background: var(--raised);
+  box-shadow: inset 0 0 0 1px var(--line-strong), var(--shadow-2);
+  transition: box-shadow var(--dur-fast) var(--ease);
+}
+
+.chat-box:focus-within {
+  box-shadow: inset 0 0 0 1px var(--accent), var(--ring), var(--shadow-2);
+}
+
+textarea.chat-input {
+  flex: 1;
+  min-width: 0;
+  max-height: var(--h-chat-input);
+  padding: var(--s-4) 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-read);
+  line-height: var(--leading-read);
+  resize: none;
+  outline: none;
+}
+
+.chat-send {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--h-xl);
+  height: var(--h-xl);
+  border-radius: var(--r-full);
+  background: var(--btn-primary-fill);
+  box-shadow: var(--btn-primary-shadow);
+  color: var(--btn-primary-ink);
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+.chat-send:disabled {
+  background: var(--sunken);
+  box-shadow: none;
+  color: var(--ink-4);
+}
+
+.chat-foot {
+  max-width: var(--w-chat);
+  margin: var(--s-4) auto 0;
+  color: var(--ink-4);
+  font-size: var(--text-xs);
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .chat-starters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .chat-thread,
+  .chat-compose {
+    padding-right: var(--s-5);
+    padding-left: var(--s-5);
+  }
+}
+
+/* Mail on this device: one line per inbox, its folders a click away */
+.health-inbox + .health-inbox {
+  border-top: 1px solid var(--line);
+}
+
+.health-inbox-head {
+  width: 100%;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.health-inbox-head:hover {
+  background: var(--hover);
+}
+
+.health-folders {
+  padding: 0 var(--s-6) var(--s-3);
+}
+
+.health-folder {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  padding: var(--s-2) 0;
+  color: var(--ink-2);
+  font-size: var(--text-s);
+}
+
+/* The AI page's ways to run AI: a name, and what it costs beside it. */
+.ai-tier {
+  display: inline-flex;
+  align-items: center;
+}
+
+.ai-tier .pill {
+  margin-left: var(--s-3);
+}
+
+/* Service, key and Save on one line. */
+.ai-key-row {
+  gap: var(--s-3);
+}
+
+.ai-key-row .password-field {
+  flex: 1;
+  min-width: 0;
+}

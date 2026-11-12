@@ -1,0 +1,19 @@
+[package]
+name = "devhost"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "Runs the real mail engine against the demo mailbox so the screens can be tested in a browser."
+
+[dependencies]
+mailcore = { path = "../../core" }
+fakeai = { path = "../fakeai" }
+fakeoauth = { path = "../fakeoauth" }
+fakegoogle = { path = "../fakegoogle" }
+fakeimap = { path = "../fakeimap" }
+fakesmtp = { path = "../fakesmtp" }
+axum = "0.8"
+data-encoding = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }

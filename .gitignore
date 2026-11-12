@@ -1,0 +1,20 @@
+target/
+node_modules/
+dist/
+.DS_Store
+*.db
+*.db-wal
+*.db-shm
+.env
+.env.*
+!.env.example
+app/src-tauri/gen/
+
+# Our own plans stay out of the public code.
+docs/private/
+
+*.out
+*.log
+
+# The old account server deploy script now lives in dakly-cloud; a local copy may remain.
+cloud/account/deploy.sh

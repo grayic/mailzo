@@ -1,0 +1,48 @@
+<!doctype html>
+<!-- The picture behind the .dmg window, styled like an airmail letter: warm paper, an airmail
+     stripes top and bottom, a dotted flight path with a paper plane from Mailzo to Applications,
+     a stamp that says what to do and a faint postmark. Finder writes the icon names in black on
+     the light paper. The app is signed and checked by Apple, so the window only needs to say "drag".
+     Icon spots must match icon_locations in settings.py (centres at 170,190 and 490,190).
+     Saved as background.tiff (1x + 2x) by scripts/dmg/render-background.sh. -->
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { position: relative; width: 660px; height: 390px; overflow: hidden;
+         background: #fbf8f2 radial-gradient(#e9e3d6 1px, transparent 1.2px) 0 0 / 18px 18px; }
+  svg { position: absolute; inset: 0; }
+  .stripe { position: absolute; left: 0; right: 0; height: 12px;
+            background: repeating-linear-gradient(-45deg, #4457f0 0 14px, #fbf8f2 14px 22px, #f0664f 22px 36px, #fbf8f2 36px 44px); }
+  .stamp { position: absolute; left: 258px; top: 248px; width: 144px; padding: 9px 8px 8px;
+           transform: rotate(-4deg); text-align: center; background: #fff;
+           border: 2px dashed #f0b3a6; border-radius: 6px; box-shadow: 0 1px 0 rgba(0,0,0,.04);
+           color: #e2553d; font: 700 10.5px/1.25 -apple-system, "SF Pro Text", sans-serif;
+           letter-spacing: .14em; text-transform: uppercase; -webkit-font-smoothing: antialiased; }
+  .stamp b { display: block; margin-top: 3px; color: #2a2f45; font-size: 13px; letter-spacing: .02em;
+             text-transform: none; font-weight: 600; }
+</style>
+
+<svg width="660" height="390" viewBox="0 0 660 390" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Faint postmark, top right -->
+  <g stroke="#d9d1c1" stroke-width="1.6">
+    <circle cx="590" cy="72" r="34"/>
+    <circle cx="590" cy="72" r="27"/>
+    <path d="M470 60c12-8 24-8 36 0s24 8 36 0"/>
+    <path d="M470 72c12-8 24-8 36 0s24 8 36 0"/>
+    <path d="M470 84c12-8 24-8 36 0s24 8 36 0"/>
+  </g>
+  <text x="590" y="76" text-anchor="middle" fill="#cfc6b4"
+        style="font: 700 10px -apple-system, sans-serif; letter-spacing: .18em">MAILZO</text>
+
+  <!-- Dotted flight path, app → Applications -->
+  <path d="M248 176C290 118 370 118 404 160" stroke="#4457f0" stroke-width="2.6" stroke-dasharray="0.1 9"/>
+  <!-- Paper plane at the end -->
+  <g transform="translate(408 166) rotate(42)">
+    <path d="M0 -12L9 12L0 6L-9 12Z" fill="#4457f0" stroke="#4457f0" stroke-width="1.5"/>
+    <path d="M0 -12V6" stroke="#fbf8f2" stroke-width="1.4"/>
+  </g>
+</svg>
+
+<div class="stamp">Drag to install<b>Into Applications</b></div>
+<div class="stripe" style="top:0"></div>
+<div class="stripe" style="bottom:0"></div>

@@ -1,0 +1,11 @@
+[package]
+name = "fakesmtp"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "Tiny outgoing mail server for tests and the demo. Keeps what it receives. Never used in the shipped app."
+
+[dependencies]
+data-encoding = "2"
+fakeimap = { path = "../fakeimap" }
+tokio = { version = "1", features = ["net", "io-util", "rt", "sync"] }

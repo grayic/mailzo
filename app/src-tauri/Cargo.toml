@@ -1,0 +1,44 @@
+[package]
+name = "inbox-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "inbox_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+mailcore = { path = "../../core" }
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-notification = "2"
+tauri-plugin-opener = "2"
+serde_json = "1"
+serde = { version = "1", features = ["derive"] }
+
+# New versions fetched from inside the app. Only a computer has them; a phone updates from its store.
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = "2"
+
+# The Mac's own language model, for searching by meaning without sending anything anywhere.
+[target.'cfg(target_os = "macos")'.dependencies]
+block2 = "0.6"
+# Leaving at once after an update, so nothing is torn down under the mail database.
+libc = "0.2"
+objc2-local-authentication = { version = "0.3", features = ["LAContext", "LAError", "block2"] }
+# The red unread badge drawn on the menu bar icon.
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSStatusItem", "NSStatusBarButton", "NSButton", "NSControl", "NSView", "NSResponder", "NSBox", "NSTextField", "NSColor", "NSFont", "NSText", "NSImage", "NSGraphics", "NSStringDrawing", "NSImageView", "NSBezierPath", "block2", "objc2-core-foundation"] }
+objc2-user-notifications = "0.3"
+
+[target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies]
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", features = ["NSError", "NSProcessInfo", "NSString", "NSArray", "NSValue", "NSGeometry", "NSAttributedString"] }
+objc2-natural-language = { version = "0.3", features = ["NLEmbedding", "NLLanguage", "NLLanguageRecognizer", "objc2-core-ml"] }
+
+[dev-dependencies]
+fakeimap = { path = "../../dev/fakeimap" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

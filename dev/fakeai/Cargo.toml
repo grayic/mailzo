@@ -1,0 +1,11 @@
+[package]
+name = "fakeai"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "Stands in for the AI company in tests and the demo. Never used in the shipped app."
+
+[dependencies]
+axum = "0.8"
+serde_json = "1"
+tokio = { version = "1", features = ["net", "rt"] }

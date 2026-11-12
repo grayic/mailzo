@@ -1,0 +1,485 @@
+/*
+ * The design tokens. This file is the only place raw values are allowed.
+ * Everything else in the app refers to these names, which is what keeps it
+ * consistent. scripts/check-design.mjs fails the build if anything bypasses them.
+ * See docs/DESIGN.md.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* Colour: surfaces */
+  --canvas: #ffffff;
+  --sidebar: #e9eaee;
+  --raised: #ffffff;
+  --sunken: #f1f2f5;
+  /* Behind the email, so the email itself can sit on top as a card. */
+  --reader-bg: #f4f5f8;
+  --hover: rgb(24 24 27 / 4.5%);
+  --press: rgb(24 24 27 / 8%);
+  --selected: rgb(24 24 27 / 5.5%);
+  --hover-strong: rgb(24 24 27 / 8%);
+  --calendar-weekend: rgb(24 24 27 / 1.5%);
+  /* Each calendar's colour, from its hue. */
+  --event-s: 72%;
+  --event-l: 52%;
+  --event-ink-l: 34%;
+  --event-chip-a: 14%;
+  --event-chip-strong-a: 24%;
+  --event-card-a: 8%;
+  --line: rgb(24 24 27 / 8%);
+  --line-strong: rgb(24 24 27 / 15%);
+  --scrim: rgb(20 20 24 / 32%);
+  --mail-paper: #ffffff;
+
+  /* Colour: text */
+  --ink: #17171a;
+  --ink-2: #4f4f57;
+  --ink-3: #7c7c85;
+  --ink-4: #a6a6ae;
+  --on-fill: #ffffff;
+
+  /* Colour: accent and meaning */
+  --accent: #2f5bea;
+  --accent-hover: #2850d6;
+  --accent-ink: #ffffff;
+  --accent-soft: rgb(47 91 234 / 9%);
+  --accent-soft-2: rgb(47 91 234 / 15%);
+  /* Barely there: marks unread rows without competing with hover or selection. */
+  --accent-faint: rgb(47 91 234 / 4%);
+  --accent-text: #2549c9;
+  --danger: #c8341f;
+  --danger-soft: rgb(200 52 31 / 9%);
+  --success: #1a8a56;
+  --star: #e0a100;
+  /* Something new and still being finished, such as a "Beta" tag: soft yellow. */
+  --new-soft: #fcefc2;
+  --new-text: #7a5800;
+  /* Behind a new version being ready: a faint green. */
+  --update-wash: rgb(26 138 86 / 12%);
+  --brand-1: #4f79f5;
+  --brand-2: #2746d0;
+  --tooltip-bg: #26262b;
+  --tooltip-ink: #f4f4f6;
+  --tooltip-key: rgb(255 255 255 / 14%);
+  --key-on-fill: rgb(255 255 255 / 18%);
+  --button-shine: rgb(255 255 255 / 14%);
+
+  /* Buttons: strong and solid, with depth from one light source above. */
+  --btn-primary-fill: linear-gradient(180deg, #4a6cff 0%, #2746f5 100%);
+  --btn-primary-fill-hover: linear-gradient(180deg, #5a7aff 0%, #3353fb 100%);
+  --btn-primary-fill-press: linear-gradient(180deg, #2746f5 0%, #2340e6 100%);
+  --btn-primary-ink: #ffffff;
+  --btn-primary-shadow: 0 0 0 1px #1b33c4, inset 0 1px 0 rgb(255 255 255 / 30%), 0 1px 2px rgb(27 51 196 / 35%), 0 8px 18px -6px rgb(39 70 245 / 55%);
+  --btn-primary-shadow-press: 0 0 0 1px #1b33c4, inset 0 1px 2px rgb(10 20 90 / 35%);
+  --btn-secondary-fill: linear-gradient(180deg, #ffffff 0%, #f2f2f6 100%);
+  --btn-secondary-fill-hover: linear-gradient(180deg, #ffffff 0%, #eaeaf0 100%);
+  --btn-secondary-fill-press: linear-gradient(180deg, #ececf1 0%, #f2f2f6 100%);
+  --btn-secondary-ink: #14141f;
+  --btn-secondary-shadow: 0 0 0 1px rgb(20 20 40 / 11%), 0 1px 2px rgb(20 20 40 / 6%);
+  --btn-secondary-shadow-press: 0 0 0 1px rgb(20 20 40 / 14%), inset 0 1px 2px rgb(20 20 40 / 8%);
+  --btn-danger-fill: linear-gradient(180deg, #e8533c 0%, #c8341f 100%);
+  --btn-danger-fill-hover: linear-gradient(180deg, #ef6650 0%, #d33c26 100%);
+  --btn-danger-fill-press: linear-gradient(180deg, #c8341f 0%, #b82e1a 100%);
+  --btn-danger-ink: #ffffff;
+  --btn-danger-shadow: 0 0 0 1px #a42815, inset 0 1px 0 rgb(255 255 255 / 26%), 0 1px 2px rgb(164 40 21 / 35%), 0 8px 18px -6px rgb(200 52 31 / 45%);
+  --btn-danger-shadow-press: 0 0 0 1px #a42815, inset 0 1px 2px rgb(70 15 5 / 35%);
+
+  /* Avatars: every person's colour comes from one hue with these settings. */
+  --avatar-ink-s: 46%;
+  --avatar-ink-l: 32%;
+  --avatar-bg-s: 58%;
+  --avatar-bg-l: 90%;
+  --avatar-edge-s: 40%;
+  --avatar-edge-l: 40%;
+  --avatar-edge-a: 16%;
+  /* Tags share those settings; gray turns the colour down to almost none. */
+  --tag-s: 1;
+  --tag-dot-s: 62%;
+  --tag-dot-l: 50%;
+
+  --welcome-glow: radial-gradient(1000px 520px at 50% -12%, var(--accent-soft), transparent 70%);
+
+  /* The fonts people can choose for writing, matching what's sent. */
+  --mail-font-system: var(--font-ui);
+  --mail-font-arial: Arial, Helvetica, sans-serif;
+  --mail-font-georgia: Georgia, "Times New Roman", serif;
+  --mail-font-times: "Times New Roman", Times, serif;
+  --mail-font-courier: "Courier New", Courier, monospace;
+  --mail-size-13: 13px;
+  /* Set on the message window from its chosen size. */
+  --compose-text: calc(14px * var(--text-scale));
+  --mail-size-14: 14px;
+  --mail-size-16: 16px;
+  --mail-size-18: 18px;
+
+  /* The dot marking which inbox a conversation is from. */
+  --account-dot-s: 62%;
+  --account-dot-l: 50%;
+
+  /* Elevation */
+  --shadow-1: 0 1px 2px rgb(16 16 20 / 5%);
+  --shadow-2: 0 1px 2px rgb(16 16 20 / 5%), 0 6px 16px -4px rgb(16 16 20 / 10%);
+  --shadow-panel: 0 0 0 1px rgb(16 16 20 / 7%), 0 2px 4px rgb(16 16 20 / 4%), 0 12px 32px -8px rgb(16 16 20 / 8%);
+  --shadow-card: 0 0 0 1px rgb(16 16 20 / 6%), 0 1px 2px rgb(16 16 20 / 4%), 0 8px 20px -10px rgb(16 16 20 / 8%);
+  --shadow-3: 0 0 0 1px rgb(16 16 20 / 6%), 0 4px 10px rgb(16 16 20 / 5%), 0 28px 64px -12px rgb(16 16 20 / 26%);
+  --ring: 0 0 0 3px rgb(47 91 234 / 22%);
+
+  /* Type */
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --text-scale: 1;
+  --text-2xs: calc(11px * var(--text-scale));
+  --text-xs: calc(12px * var(--text-scale));
+  --text-s: calc(13px * var(--text-scale));
+  --text-base: calc(14px * var(--text-scale));
+  --text-m: calc(14.5px * var(--text-scale));
+  --text-read: calc(15px * var(--text-scale));
+  --text-l: calc(20px * var(--text-scale));
+  --text-xl: calc(24px * var(--text-scale));
+  --text-code: 24px;
+  --text-number: 30px;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 650;
+  --leading-tight: 1.2;
+  --leading-snug: 1.4;
+  --leading-body: 1.45;
+  --leading-read: 1.55;
+  --track-body: -0.003em;
+  --track-read: -0.005em;
+  --track-title: -0.014em;
+  --track-display: -0.022em;
+  --track-key: 0.02em;
+  --track-code: 0.3em;
+
+  /* Spacing */
+  --s-1: 2px;
+  --s-2: 4px;
+  --s-3: 6px;
+  --s-4: 8px;
+  --s-5: 10px;
+  --s-6: 12px;
+  --s-7: 14px;
+  --s-8: 16px;
+  --s-9: 20px;
+  --s-10: 24px;
+  --s-11: 28px;
+  --s-12: 32px;
+  --s-13: 48px;
+
+  /* Sizes: controls and fixed parts */
+  --h-3xs: 6px;
+  --h-2xs: 18px;
+  --h-xs: 22px;
+  --h-s: 26px;
+  --h-m: 30px;
+  --h-l: 32px;
+  --h-xl: 36px;
+  --h-2xl: 38px;
+  --h-3xl: 44px;
+  --h-4xl: 48px;
+  --h-5xl: 52px;
+  --icon-xs: 13px;
+  --icon-s: 15px;
+  --icon-m: 18px;
+  --icon-l: 20px;
+  --avatar-xs: 18px;
+  /* Two letters fit inside the smallest circle with room around them. */
+  --avatar-xs-text: 8px;
+  --avatar-s: 24px;
+  --avatar-m: 34px;
+  --w-bar: 3px;
+  --w-scrollbar: 10px;
+  --w-empty: 220px;
+  --w-chip-input: 120px;
+  --h-editor: 120px;
+  --h-inline-reply: 180px;
+  --w-sidebar: 248px;
+  /* The sidebar as a rail of icons: the window's own buttons, with a small gap after them. */
+  --w-rail: 84px;
+  --w-list: 384px;
+  --w-head-search: 560px;
+  --w-news-inbox: 190px;
+  --w-news-count: 72px;
+  --w-news-action: 220px;
+  --w-reader: 780px;
+  --w-reader-panel: 820px;
+  --h-layout-sketch: 96px;
+  --w-row-from: 200px;
+  --w-row-time: 64px;
+  --w-today-event: 260px;
+  --w-reader-narrow: 420px;
+  --w-composer: 660px;
+  --h-composer: 660px;
+  --w-port: 80px;
+  --w-switcher-menu: 300px;
+  --w-menu-key: 22px;
+  --w-settings-nav: 232px;
+  --w-settings-page: 620px;
+  --w-choice: 220px;
+  --w-toggle: 34px;
+  --h-toggle: 20px;
+  --h-signature: 150px;
+  --h-signature-max: 280px;
+  --w-card: 400px;
+  /* Behind a provider's logo, which is made for white in either theme. */
+  --logo-tile: #ffffff;
+  /* Room for setup steps to read in short lines. */
+  --w-card-guide: 460px;
+  --w-dialog-s: 380px;
+  --w-dialog-m: 440px;
+  --w-dialog-l: 760px;
+  --w-menu: 200px;
+  --w-suggest: 360px;
+  --w-file: 236px;
+  --w-text-narrow: 240px;
+  --w-tooltip: 280px;
+  --w-file-chip: 260px;
+  --w-toast: 560px;
+  --w-toast-sending: 380px;
+  --w-first-load: 240px;
+  --h-sending-time: 3px;
+  /* Set on the element: how much undo time is left, and how far the mail download has got. */
+  --sending-left: 1;
+  --download-done: 0%;
+  /* The Sending box: the New message button's blue, with a glowing edge. */
+  --sending-glow: 0 0 0 1px #8fa6ff, inset 0 1px 0 rgb(255 255 255 / 30%), 0 0 14px 2px rgb(74 108 255 / 55%), var(--shadow-3);
+  --sending-glow-wide: 0 0 0 1px #b4c4ff, inset 0 1px 0 rgb(255 255 255 / 30%), 0 0 26px 6px rgb(74 108 255 / 70%), var(--shadow-3);
+  --sending-undo-ink: #2746f5;
+  --sending-track: rgb(255 255 255 / 22%);
+  --sending-undo-hover: rgb(255 255 255 / 88%);
+  --sending-now-hover: rgb(255 255 255 / 14%);
+  --h-menu: 420px;
+  --h-files: 96px;
+  --h-send-ask: 320px;
+  --h-note-max: 180px;
+  --inset-text: 62px; /* Plain text lines up with the sender's name. */
+  --w-composer-label: 52px;
+  --inset-suggest: 74px; /* Suggestions line up with the addresses. */
+
+  /* Corners */
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+  --calendar-side: 320px;
+  --calendar-date: 24px;
+  --w-news-warn: 220px;
+  --w-chat: 760px;
+  --w-chat-source: 220px;
+  --h-chat-input: 160px;
+  /* A deleted email going out as a folded letter. Set on each one from where its row was. */
+  --fly-x: 0px;
+  --fly-y: 0px;
+  --fly-depth: 700px;
+  --fly-sheet-w: 120px;
+  --fly-sheet-h: 152px;
+  --fly-line: 3px;
+  --fly-paper: #fdfcf9;
+  --fly-paper-back: #ece8df;
+  --fly-ink: #2a2a2e;
+  --fly-line-ink: #ddd8cd;
+  --fly-crease: rgb(0 0 0 / 8%);
+  --fly-shadow: rgb(0 0 0 / 28%);
+  --accent-ink-on-color: #ffffff;
+  --calendar-chip: 20px;
+  --w-event-dialog: 520px;
+  --event-icon-col: 20px;
+  --event-swatch: 12px;
+  --event-when-label: 48px;
+  --track-caps: 0.06em;
+  --calendar-phone-grid: 340px;
+  --phone-sheet-room: 260px;
+  --text-phone-input: 16px;
+  --command-width: min(560px, 92vw);
+  --command-top: 12vh;
+  /* How tall an attachment preview may be. */
+  --preview-h: 70vh;
+  --command-list-height: 340px;
+  --r-xs: 4px;
+  --r-s: 6px;
+  --r-m: 8px;
+  --r-ml: 10px;
+  --r-l: 12px;
+  --r-xl: 14px;
+  --r-2xl: 18px;
+  --r-full: 999px;
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur-fast: 100ms;
+  --dur-base: 180ms;
+
+  /* Layers */
+  --z-behind: -1;
+  /* Each email row sets this for its highlight. */
+  --row-fill: transparent;
+  --z-sticky: 5;
+  --z-popover: 10;
+  --z-overlay: 20;
+  --z-composer: 30;
+  --z-dialog: 50;
+  --z-toast: 60;
+  --z-menu: 70;
+  --z-tooltip: 90;
+}
+
+/* The two blocks below must match. check-design.mjs fails if they don't. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --canvas: #18181b;
+    --reader-bg: #18181b;
+    --shadow-panel: 0 0 0 1px var(--line), var(--shadow-2);
+    --shadow-card: 0 0 0 1px var(--line);
+    --sidebar: #0e0e10;
+    --raised: #1d1d20;
+    --sunken: #111113;
+    --hover: rgb(255 255 255 / 5%);
+    --press: rgb(255 255 255 / 9%);
+    --selected: rgb(255 255 255 / 7%);
+    --hover-strong: rgb(255 255 255 / 9%);
+    --calendar-weekend: rgb(255 255 255 / 1.5%);
+    --event-s: 78%;
+    --event-l: 64%;
+    --event-ink-l: 80%;
+    --event-chip-a: 18%;
+    --event-chip-strong-a: 28%;
+    --event-card-a: 10%;
+    --line: rgb(255 255 255 / 7.5%);
+    --line-strong: rgb(255 255 255 / 15%);
+    --scrim: rgb(0 0 0 / 50%);
+
+    --ink: #eeeef0;
+    --ink-2: #b8b8c0;
+    --ink-3: #8c8c95;
+    --ink-4: #62626b;
+
+    --accent: #6d8dff;
+    --accent-hover: #83a0ff;
+    --accent-ink: #0d1020;
+    --accent-soft: rgb(109 141 255 / 12%);
+    --accent-soft-2: rgb(109 141 255 / 20%);
+    --accent-faint: rgb(109 141 255 / 6%);
+    --accent-text: #a3b8ff;
+    --danger: #ff8473;
+    --danger-soft: rgb(255 132 115 / 12%);
+    --success: #5fcf9a;
+    --star: #f2c144;
+    --new-soft: rgba(242, 193, 68, 0.16);
+    --new-text: #f2c96a;
+    --update-wash: rgb(95 207 154 / 18%);
+    --tooltip-bg: #3a3a41;
+
+    --btn-primary-shadow: 0 0 0 1px #1b33c4, inset 0 1px 0 rgb(255 255 255 / 26%), 0 1px 2px rgb(0 0 0 / 50%), 0 8px 20px -6px rgb(39 70 245 / 60%);
+    --btn-secondary-fill: linear-gradient(180deg, #303036 0%, #26262b 100%);
+    --btn-secondary-fill-hover: linear-gradient(180deg, #38383f 0%, #2c2c32 100%);
+    --btn-secondary-fill-press: linear-gradient(180deg, #232327 0%, #2a2a2f 100%);
+    --btn-secondary-ink: #f1f1f4;
+    --btn-secondary-shadow: 0 0 0 1px rgb(255 255 255 / 9%), inset 0 1px 0 rgb(255 255 255 / 5%), 0 1px 2px rgb(0 0 0 / 28%);
+    --btn-secondary-shadow-press: 0 0 0 1px rgb(255 255 255 / 9%), inset 0 1px 2px rgb(0 0 0 / 30%);
+
+    --avatar-ink-s: 70%;
+    --avatar-ink-l: 82%;
+    --avatar-bg-s: 26%;
+    --avatar-bg-l: 24%;
+    --avatar-edge-s: 60%;
+    --avatar-edge-l: 80%;
+    --avatar-edge-a: 14%;
+    --tag-dot-s: 58%;
+    --tag-dot-l: 62%;
+
+    --shadow-1: 0 1px 2px rgb(0 0 0 / 30%);
+    --shadow-2: 0 1px 2px rgb(0 0 0 / 30%), 0 8px 20px -4px rgb(0 0 0 / 45%);
+    --shadow-3: 0 0 0 1px rgb(255 255 255 / 8%), 0 4px 12px rgb(0 0 0 / 30%), 0 32px 72px -12px rgb(0 0 0 / 65%);
+    --ring: 0 0 0 3px rgb(109 141 255 / 28%);
+  }
+}
+
+:root[data-theme="dark"] {
+  --canvas: #18181b;
+  --reader-bg: #18181b;
+  --shadow-panel: 0 0 0 1px var(--line), var(--shadow-2);
+  --shadow-card: 0 0 0 1px var(--line);
+  --sidebar: #0e0e10;
+  --raised: #1d1d20;
+  --sunken: #111113;
+  --hover: rgb(255 255 255 / 5%);
+  --press: rgb(255 255 255 / 9%);
+  --selected: rgb(255 255 255 / 7%);
+  --hover-strong: rgb(255 255 255 / 9%);
+  --calendar-weekend: rgb(255 255 255 / 1.5%);
+  --event-s: 78%;
+  --event-l: 64%;
+  --event-ink-l: 80%;
+  --event-chip-a: 18%;
+  --event-chip-strong-a: 28%;
+  --event-card-a: 10%;
+  --line: rgb(255 255 255 / 7.5%);
+  --line-strong: rgb(255 255 255 / 15%);
+  --scrim: rgb(0 0 0 / 50%);
+
+  --ink: #eeeef0;
+  --ink-2: #b8b8c0;
+  --ink-3: #8c8c95;
+  --ink-4: #62626b;
+
+  --accent: #6d8dff;
+  --accent-hover: #83a0ff;
+  --accent-ink: #0d1020;
+  --accent-soft: rgb(109 141 255 / 12%);
+  --accent-soft-2: rgb(109 141 255 / 20%);
+  --accent-faint: rgb(109 141 255 / 6%);
+  --accent-text: #a3b8ff;
+  --danger: #ff8473;
+  --danger-soft: rgb(255 132 115 / 12%);
+  --success: #5fcf9a;
+  --star: #f2c144;
+  --new-soft: rgba(242, 193, 68, 0.16);
+  --new-text: #f2c96a;
+  --update-wash: rgb(95 207 154 / 18%);
+  --tooltip-bg: #3a3a41;
+
+  --btn-primary-shadow: 0 0 0 1px #1b33c4, inset 0 1px 0 rgb(255 255 255 / 26%), 0 1px 2px rgb(0 0 0 / 50%), 0 8px 20px -6px rgb(39 70 245 / 60%);
+  --btn-secondary-fill: linear-gradient(180deg, #303036 0%, #26262b 100%);
+  --btn-secondary-fill-hover: linear-gradient(180deg, #38383f 0%, #2c2c32 100%);
+  --btn-secondary-fill-press: linear-gradient(180deg, #232327 0%, #2a2a2f 100%);
+  --btn-secondary-ink: #f1f1f4;
+  --btn-secondary-shadow: 0 0 0 1px rgb(255 255 255 / 9%), inset 0 1px 0 rgb(255 255 255 / 5%), 0 1px 2px rgb(0 0 0 / 28%);
+  --btn-secondary-shadow-press: 0 0 0 1px rgb(255 255 255 / 9%), inset 0 1px 2px rgb(0 0 0 / 30%);
+
+  --avatar-ink-s: 70%;
+  --avatar-ink-l: 82%;
+  --avatar-bg-s: 26%;
+  --avatar-bg-l: 24%;
+  --avatar-edge-s: 60%;
+  --avatar-edge-l: 80%;
+  --avatar-edge-a: 14%;
+  --tag-dot-s: 58%;
+  --tag-dot-l: 62%;
+
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 30%);
+  --shadow-2: 0 1px 2px rgb(0 0 0 / 30%), 0 8px 20px -4px rgb(0 0 0 / 45%);
+  --shadow-3: 0 0 0 1px rgb(255 255 255 / 8%), 0 4px 12px rgb(0 0 0 / 30%), 0 32px 72px -12px rgb(0 0 0 / 65%);
+  --ring: 0 0 0 3px rgb(109 141 255 / 28%);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* Choices from Appearance. */
+:root[data-reading="small"] {
+  --text-scale: 0.92;
+}
+
+:root[data-reading="large"] {
+  --text-scale: 1.1;
+}
+
+:root[data-reading="xlarge"] {
+  --text-scale: 1.22;
+}

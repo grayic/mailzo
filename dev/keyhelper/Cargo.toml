@@ -1,0 +1,9 @@
+[package]
+name = "inbox-keyhelper"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "For local builds only. The one program that touches the Keychain, kept unchanged so macOS never asks again."
+
+[dependencies]
+mailcore = { path = "../../core" }

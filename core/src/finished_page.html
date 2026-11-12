@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{title}} · Mailzo</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,{{favicon}}">
+<style>
+{{tokens}}
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: var(--s-10);
+  background: var(--welcome-glow), var(--sidebar);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The same card as the app's Connect an inbox screen. */
+.card {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--w-card);
+  padding: var(--s-10);
+  border-radius: var(--r-2xl);
+  background: var(--raised);
+  box-shadow: 0 0 0 1px var(--line), var(--shadow-2);
+}
+
+.logo {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  margin-bottom: var(--s-8);
+}
+
+.logo > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.mark {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--r-full);
+  box-shadow: 0 0 0 2px var(--raised);
+  color: var(--on-fill);
+}
+
+.mark svg {
+  display: none;
+  width: 12px;
+  height: 12px;
+}
+
+[data-outcome="done"] .mark { background: var(--success); }
+[data-outcome="done"] .mark-done { display: block; }
+[data-outcome="stopped"] .mark { background: var(--ink-3); }
+[data-outcome="stopped"] .mark-stopped { display: block; }
+
+h1 {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--track-display);
+}
+
+p {
+  margin: var(--s-3) 0 0;
+  color: var(--ink-3);
+  font-size: var(--text-m);
+  line-height: var(--leading-body);
+}
+</style>
+</head>
+<body>
+<main class="card" data-outcome="{{outcome}}">
+  <div class="logo">
+    {{logo}}
+    <span class="mark" aria-hidden="true">
+      <svg class="mark-done" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+      <svg class="mark-stopped" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M7 7l10 10M17 7L7 17"/></svg>
+    </span>
+  </div>
+  <h1>{{title}}</h1>
+  <p>You can close this tab and go back to Mailzo.</p>
+</main>
+</body>
+</html>
