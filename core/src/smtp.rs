@@ -107,6 +107,7 @@ async fn transport(
             "Unencrypted connections are only allowed to this computer.".into(),
         ));
     }
+    crate::signin::check_token_server(account, host)?;
     let dial = tokio::time::timeout(SMTP_TIMEOUT, crate::net::server_to_dial(host, port, reach))
         .await
         .map_err(|_| send_error("smtp_connect", format!("Looking up {host} timed out.")))?

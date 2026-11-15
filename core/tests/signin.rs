@@ -43,10 +43,10 @@ pub fn stand_in(oauth: &FakeOAuth, imap: &FakeServer, smtp: &FakeSmtp) -> MailSi
         scope: "openid email offline_access mail".into(),
         extra_consent: None,
         extra: vec![],
-        servers: Some(Servers {
+        servers: Servers {
             imap: ("127.0.0.1".into(), imap.addr.port(), Security::Plain),
             smtp: ("127.0.0.1".into(), smtp.addr.port(), SmtpSecurity::Plain),
-        }),
+        },
     }
 }
 
@@ -359,6 +359,42 @@ async fn the_connect_screen_offers_the_browser_only_when_it_can() {
     assert_eq!(gmail.browser.as_deref(), Some("google"));
 
     assert_eq!(ready.find_provider("me@icloud.com").await.browser, None);
+}
+
+#[tokio::test]
+async fn a_sign_in_token_only_goes_to_the_providers_own_servers() {
+    let r = rig().await;
+    let id = r.sign_in().await.unwrap()["id"].as_i64().unwrap();
+    // The settings screen doesn't offer these for a browser sign-in, but the token opens the
+    // whole mailbox, so no other way in may send it to a server someone else runs.
+    let outgoing = r
+        .call(
+            "update_account_settings",
+            json!({ "account_id": id, "smtp_host": "smtp.elsewhere.test", "smtp_port": 465, "smtp_security": "tls" }),
+        )
+        .await;
+    assert_eq!(outgoing.unwrap_err().code(), "invalid");
+    let incoming = r
+        .call(
+            "update_connection",
+            json!({ "account_id": id, "imap_host": "imap.elsewhere.test", "imap_port": 993, "security": "tls" }),
+        )
+        .await;
+    // Turned down before connecting anywhere, not by a failed connection.
+    assert_eq!(incoming.unwrap_err().code(), "invalid");
+}
+
+#[test]
+fn a_token_is_only_for_its_own_providers_servers() {
+    use mailcore::signin::token_may_go_to;
+    assert!(token_may_go_to("google", "imap.gmail.com"));
+    assert!(token_may_go_to("google", "SMTP.gmail.com"));
+    assert!(!token_may_go_to("google", "imap.gmail.com.elsewhere.test"));
+    assert!(!token_may_go_to("google", "outlook.office365.com"));
+    assert!(token_may_go_to("microsoft", "outlook.office365.com"));
+    assert!(token_may_go_to("microsoft", "smtp.office365.com"));
+    assert!(!token_may_go_to("microsoft", "mail.example.com"));
+    assert!(!token_may_go_to("someone", "imap.gmail.com"));
 }
 
 #[test]

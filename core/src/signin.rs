@@ -28,7 +28,7 @@ const EARLY_RENEWAL_SECONDS: i64 = 60;
 
 pub const PASSWORD: &str = "password";
 
-/// Fixed servers, for stand-ins. Real providers are worked out from the address.
+/// The only servers a provider's token is sent to.
 #[derive(Clone)]
 pub struct Servers {
     pub imap: (String, u16, Security),
@@ -50,7 +50,7 @@ pub struct MailSignIn {
     /// token only ever covers one service, so this stays out of the token requests.
     pub extra_consent: Option<String>,
     pub extra: Vec<(String, String)>,
-    pub servers: Option<Servers>,
+    pub servers: Servers,
 }
 
 impl MailSignIn {
@@ -68,10 +68,10 @@ impl MailSignIn {
             ),
             extra: vec![("prompt".into(), "select_account".into())],
             // A token to someone's whole mailbox only ever goes to the provider's own servers.
-            servers: Some(Servers {
+            servers: Servers {
                 imap: ("outlook.office365.com".into(), 993, Security::Tls),
                 smtp: ("smtp.office365.com".into(), 587, SmtpSecurity::StartTls),
-            }),
+            },
         }
     }
 
@@ -89,12 +89,37 @@ impl MailSignIn {
                 ("access_type".into(), "offline".into()),
                 ("prompt".into(), "consent".into()),
             ],
-            servers: Some(Servers {
+            servers: Servers {
                 imap: ("imap.gmail.com".into(), 993, Security::Tls),
                 smtp: ("smtp.gmail.com".into(), 465, SmtpSecurity::Tls),
-            }),
+            },
         }
     }
+}
+
+/// Whether a browser sign-in's token may be sent to this server: only to the provider's own.
+/// The token opens the whole mailbox, so a server name changed later, typed in or from
+/// another device or a team, must never take it anywhere else.
+pub fn token_may_go_to(provider: &str, host: &str) -> bool {
+    let own = match provider {
+        "google" => MailSignIn::google("", "").servers,
+        "microsoft" => MailSignIn::microsoft("").servers,
+        _ => return false,
+    };
+    host.eq_ignore_ascii_case(&own.imap.0) || host.eq_ignore_ascii_case(&own.smtp.0)
+}
+
+/// Turns down sending an account's token to a server that isn't its provider's. The
+/// stand-in provider for tests and the self-test runs on this computer, in debug builds only.
+pub(crate) fn check_token_server(account: &Account, host: &str) -> Result<()> {
+    let stand_in = cfg!(debug_assertions) && matches!(host, "localhost" | "127.0.0.1" | "::1");
+    if account.auth == PASSWORD || stand_in || token_may_go_to(&account.auth, host) {
+        return Ok(());
+    }
+    Err(CoreError::Invalid(
+        "This inbox signs in through its provider, so it only connects to the provider's own servers."
+            .into(),
+    ))
 }
 
 #[derive(Deserialize)]
@@ -304,18 +329,8 @@ impl Engine {
             .clone()
             .or_else(|| (!email.is_empty()).then(|| email.to_string()))
             .ok_or_else(|| signin_failed("The provider didn't say which account that was."))?;
-        let found = self.find_provider(&address).await;
-        let (imap, smtp) = match &config.servers {
-            Some(fixed) => (fixed.imap.clone(), fixed.smtp.clone()),
-            None => (
-                (found.imap_host.clone(), found.imap_port, Security::Tls),
-                (
-                    found.smtp_host.clone(),
-                    found.smtp_port,
-                    found.smtp_security,
-                ),
-            ),
-        };
+        // Never looked up from the address's domain, which whoever runs it could point anywhere.
+        let (imap, smtp) = (config.servers.imap.clone(), config.servers.smtp.clone());
         let probe = Account {
             id: 0,
             sync_id: String::new(),

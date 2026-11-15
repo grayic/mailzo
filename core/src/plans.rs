@@ -11,7 +11,7 @@ use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
 
 pub(crate) const VIA_KEY: &str = "key";
@@ -149,8 +149,11 @@ fn claude_args(system: &str, model: &str) -> Vec<String> {
         "",
         "--disable-slash-commands",
         "--no-session-persistence",
+        // The answer as it's written, then the usual result on the last line.
         "--output-format",
-        "json",
+        "stream-json",
+        "--verbose",
+        "--include-partial-messages",
         "--model",
         model,
         "--system-prompt",
@@ -329,6 +332,7 @@ impl Engine {
                 false,
                 "Reply with only this JSON object and nothing else: {\"ok\":true}",
                 "Are you there?",
+                None,
             )
             .await?;
         if !answer.contains("true") {
@@ -342,12 +346,14 @@ impl Engine {
 
     /// One question through the plan's program. The question goes in by the program's input,
     /// not its command line, where other programs on the Mac could see an email's words.
+    /// Claude's answer goes to `live` as it's written.
     pub(crate) async fn ask_plan(
         &self,
         plan: Plan,
         writing: bool,
         system: &str,
         question: &str,
+        live: Option<crate::ai::Live<'_>>,
     ) -> Result<String> {
         let program = self.plan_program(plan).ok_or_else(|| {
             ai_error(
@@ -390,22 +396,56 @@ impl Engine {
                 .await
                 .map_err(|_| ai_error("ai_failed", "Couldn't start the AI program."))?;
         }
-        let done = tokio::time::timeout(ANSWER_WAIT, child.wait_with_output()).await;
+        // Read as it's printed: claude's answer comes a piece at a time, and everything else
+        // it prints is kept for the end.
+        let (mut printed, mut errors) = (String::new(), String::new());
+        let (out, err) = (child.stdout.take(), child.stderr.take());
+        let done = tokio::time::timeout(ANSWER_WAIT, async {
+            let reading = async {
+                let Some(out) = out else { return };
+                let mut lines = tokio::io::BufReader::new(out).lines();
+                let mut text = String::new();
+                while let Ok(Some(line)) = lines.next_line().await {
+                    match serde_json::from_str::<Value>(&line) {
+                        Ok(v) if v["type"] == "stream_event" => {
+                            if let (Some(piece), Some(live)) =
+                                (v["event"]["delta"]["text"].as_str(), live)
+                            {
+                                text.push_str(piece);
+                                live(&text);
+                            }
+                        }
+                        _ => {
+                            printed.push_str(&line);
+                            printed.push('\n');
+                        }
+                    }
+                }
+            };
+            let errs = async {
+                if let Some(mut err) = err {
+                    let _ = err.read_to_string(&mut errors).await;
+                }
+            };
+            tokio::join!(reading, errs);
+            child.wait().await
+        })
+        .await;
         let saved = std::fs::read_to_string(&answer_file);
         let _ = std::fs::remove_file(&answer_file);
-        let out = done
+        let status = done
             .map_err(|_| ai_error("ai_failed", "The AI took too long to answer."))?
             .map_err(|_| ai_error("ai_failed", "The AI couldn't work that one out."))?;
-        let printed = String::from_utf8_lossy(&out.stdout);
-        let errors = String::from_utf8_lossy(&out.stderr);
         self.note_ai_usage(crate::allowance::Usage::default(), "", false);
         match plan {
             Plan::Claude => {
-                // Why it failed goes in the log, never the answer, which may quote an email.
-                let value: Value = serde_json::from_str(printed.trim()).map_err(|_| {
+                // The result is the last line. Why it failed goes in the log, never the
+                // answer, which may quote an email.
+                let last = printed.trim().lines().last().unwrap_or("");
+                let value: Value = serde_json::from_str(last).map_err(|_| {
                     eprintln!(
                         "claude: answer not readable (exit {:?}, {} chars out): {}",
-                        out.status.code(),
+                        status.code(),
                         printed.len(),
                         errors.chars().take(300).collect::<String>()
                     );
@@ -413,10 +453,10 @@ impl Engine {
                 })?;
                 log_for_measuring(system, question, started.elapsed(), &value);
                 let result = value["result"].as_str().unwrap_or("");
-                if value["is_error"] == true || !out.status.success() {
+                if value["is_error"] == true || !status.success() {
                     eprintln!(
                         "claude: failed (exit {:?}, {}): {}",
-                        out.status.code(),
+                        status.code(),
                         value["subtype"],
                         // Only claude's own error, never what may be the reply's words.
                         if value["is_error"] == true && result.starts_with("API Error") {
@@ -430,7 +470,7 @@ impl Engine {
                 Ok(crate::ai::without_code_fence(result).to_string())
             }
             Plan::ChatGpt => match saved {
-                Ok(text) if out.status.success() => {
+                Ok(text) if status.success() => {
                     Ok(crate::ai::without_code_fence(&text).to_string())
                 }
                 _ => Err(limit_or_failure(plan, &format!("{printed}{errors}"))),

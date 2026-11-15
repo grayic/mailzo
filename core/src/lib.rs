@@ -53,6 +53,7 @@ pub mod smtp;
 pub mod spam;
 pub mod store;
 pub mod style;
+pub mod subscriptions;
 pub mod sync;
 pub mod tags;
 pub mod team;

@@ -28,7 +28,7 @@ import type { Account, Addr, Draft, ReplyStart } from "../types";
 import { MailBody } from "./MailBody";
 import { RecipientInput, looksValid } from "./RecipientInput";
 import { QUICK_ANSWERS } from "./Priority";
-import { RichEditor } from "./RichEditor";
+import { RichEditor, type Typer } from "./RichEditor";
 import { Avatar, Confirm, Icon, IconButton, Menu, MenuItem, Problem, Spinner } from "./ui";
 import { tx } from "../i18n";
 import { hasStyling, textAsHtml } from "../markdown";
@@ -208,6 +208,8 @@ export function Composer({
   const [pickingTime, setPickingTime] = useState(false);
   const [aiNote, setAiNote] = useState<string | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
+  /** The AI's reply is showing as it writes it. */
+  const [aiTyping, setAiTyping] = useState(false);
   // Closing the reply stops the AI's words: nothing is typed into a closed reply.
   const open = useRef(true);
   useEffect(
@@ -216,7 +218,7 @@ export function Composer({
     },
     [],
   );
-  const typeText = useRef<((text: string) => Promise<void>) | null>(null);
+  const typeText = useRef<(() => Typer) | null>(null);
   /** The words as they were before AI changed them, so one click puts them back. */
   const [beforeAi, setBeforeAi] = useState<string | null>(null);
   const [hasAi, setHasAi] = useState(false);
@@ -403,21 +405,36 @@ export function Composer({
     if (!parent && !note.trim()) return;
     setAiBusy(true);
     setProblem(null);
+    // Words appear as the AI writes them.
+    const typer = typeText.current?.();
+    let typed = "";
     try {
       const reply = parent
-        ? (await api.aiWriteReply(parent, note)).reply
+        ? (
+            await api.aiWriteReply(parent, note, (piece) => {
+              setAiTyping(true);
+              typed += piece;
+              typer?.add(piece);
+            })
+          ).reply
         : (await api.aiPolish(note, "write", now.account_id)).text;
       if (!open.current) return;
       setAiBusy(false);
       markTouched();
       setAiNote(null);
-      // Words appear as they come; a reply with lists or bold goes in whole, formatted.
-      if (typeText.current && !hasStyling(reply)) await typeText.current(reply);
-      else insertText.current?.(reply);
+      if (!typer) return insertText.current?.(reply);
+      // What didn't show while it was written goes in now. Then a reply with lists or bold
+      // shows them as formatting.
+      const followsOn = reply.startsWith(typed);
+      if (followsOn) typer.add(reply.slice(typed.length));
+      await typer.end(followsOn && !hasStyling(reply) ? undefined : textAsHtml(reply));
     } catch (e) {
+      // An answer that broke off isn't a reply.
+      await typer?.end("");
       setProblem({ text: say(e) });
     } finally {
       setAiBusy(false);
+      setAiTyping(false);
     }
   };
 
@@ -799,7 +816,7 @@ export function Composer({
           aboveToolbar={
             <>
               {/* In the flow above the toolbar, so nothing sits on top of it. */}
-              {aiBusy && draft.text.trim() !== "" && (
+              {aiBusy && !aiTyping && draft.text.trim() !== "" && (
                 <div className="ai-writing" role="status">
                   <Spinner size="xs" />
                   {tx("Writing your reply… It shows up above in a few seconds, for you to check before sending.")}</div>

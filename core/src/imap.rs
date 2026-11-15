@@ -181,6 +181,7 @@ impl ImapConnection {
     ) -> Result<ImapConnection> {
         let host = account.imap_host.as_str();
         check_security(host, account.security)?;
+        crate::signin::check_token_server(account, host)?;
 
         let tcp = timed(
             CONNECT_TIMEOUT,

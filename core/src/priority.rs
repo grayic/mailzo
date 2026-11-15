@@ -457,8 +457,11 @@ pub fn decide(f: &Facts) -> Decision {
     let company = is_company_address(f.from);
     // Receipts, orders, bills and bank alerts are a record of something done, even when
     // their small print asks "Questions?" or says to contact them.
+    // A person asking about one in the subject ("Refund please", "Billing question?") isn't
+    // a record, though: that's a customer or client waiting on them.
+    let asked_by_a_person = !company && asks_something(&subject);
     let record = sign_in
-        || crate::purchases::is_purchase(f.subject, f.from)
+        || (crate::purchases::is_purchase(f.subject, f.from) && !asked_by_a_person)
         || BANK_ALERT.iter().any(|b| words.trim_start().starts_with(b));
     if f.answers_me || (f.is_contact && !company) {
         if !direct {

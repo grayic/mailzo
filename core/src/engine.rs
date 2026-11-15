@@ -31,6 +31,8 @@ pub type FileOpener = Arc<dyn Fn(&str, bool) + Send + Sync>;
 pub type AlertSender = Arc<dyn Fn(&Alert) + Send + Sync>;
 /// Told which inbox has new mail as soon as it's saved, so every window can show it.
 pub type NewMailListener = Arc<dyn Fn(i64) + Send + Sync>;
+/// Given each new piece of a reply the AI is writing, with the id the screen asked with.
+pub type WritingListener = Arc<dyn Fn(&str, &str) + Send + Sync>;
 
 pub struct Engine {
     pub(crate) store: Store,
@@ -94,6 +96,7 @@ pub struct Engine {
     pub(crate) avatar_turns: Semaphore,
     pub(crate) alert_sender: Option<AlertSender>,
     new_mail_listener: Option<NewMailListener>,
+    pub(crate) writing_listener: Option<WritingListener>,
     pub(crate) team: crate::team::TeamRuntime,
     pub(crate) embedder: Option<crate::meaning::Embedder>,
     /// The Mac's own AI, used when nothing else is connected.
@@ -324,6 +327,9 @@ struct WriteReplyArg {
     message_id: i64,
     #[serde(default)]
     instruction: String,
+    /// Given by a screen that shows the reply as it's written.
+    #[serde(default)]
+    live: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -366,6 +372,28 @@ struct ThreadWhen {
 #[derive(Deserialize)]
 struct KindArg {
     kind: String,
+}
+
+#[derive(Deserialize)]
+struct SubscriptionEdit {
+    key: String,
+    #[serde(default)]
+    edit: crate::subscriptions::Change,
+}
+
+#[derive(Deserialize)]
+struct SubscriptionAdd {
+    name: String,
+    amount: f64,
+    currency: String,
+    period: crate::subscriptions::Period,
+    #[serde(default)]
+    next: Option<i64>,
+}
+
+#[derive(Deserialize)]
+struct SubscriptionKey {
+    key: String,
 }
 
 #[derive(Deserialize)]
@@ -839,6 +867,8 @@ struct NewFolderArg {
 /// Servers may drop a quiet connection after about 30 minutes, and home routers much sooner.
 /// Enough that what just arrived opens at once. The longer refresh brings the rest.
 const BODIES_WITH_NEW_MAIL: usize = 5;
+/// With a filter that reads what's inside: enough for a busy morning's worth at once.
+const BODIES_WITH_NEW_MAIL_FILTERED: usize = 50;
 const MAIL_WAIT_LIMIT: std::time::Duration = std::time::Duration::from_secs(9 * 60);
 
 #[derive(Deserialize)]
@@ -1089,6 +1119,7 @@ impl Engine {
             mail_watches: Mutex::new(HashMap::new()),
             alert_sender: None,
             new_mail_listener: None,
+            writing_listener: None,
             team: Default::default(),
             embedder: None,
             on_device: None,
@@ -1184,6 +1215,11 @@ impl Engine {
 
     pub fn with_new_mail_listener(mut self, listener: NewMailListener) -> Self {
         self.new_mail_listener = Some(listener);
+        self
+    }
+
+    pub fn with_writing_listener(mut self, listener: WritingListener) -> Self {
+        self.writing_listener = Some(listener);
         self
     }
 
@@ -1587,6 +1623,23 @@ impl Engine {
                 to_json(self.store.senders_in(a.folder_id)?)
             }
             "newsletters" => to_json(self.newsletters()?),
+            "subscriptions" => to_json(self.subscriptions()?),
+            "subscription_edit" => {
+                let a: SubscriptionEdit = from_json(args)?;
+                self.store.edit_subscription(&a.key, a.edit)?;
+                to_json(self.subscriptions()?)
+            }
+            "subscription_add" => {
+                let a: SubscriptionAdd = from_json(args)?;
+                self.store
+                    .add_subscription(&a.name, a.amount, &a.currency, a.period, a.next)?;
+                to_json(self.subscriptions()?)
+            }
+            "subscription_remove" => {
+                let a: SubscriptionKey = from_json(args)?;
+                self.store.remove_subscription(&a.key)?;
+                to_json(self.subscriptions()?)
+            }
             "mail_with" => {
                 let a: MailWith = from_json(args)?;
                 to_json(self.store.mail_with(a.account_id, &a.addresses)?)
@@ -1699,7 +1752,8 @@ impl Engine {
             }
             "ai_write_reply" => {
                 let a: WriteReplyArg = from_json(args)?;
-                self.ai_write_reply(a.message_id, &a.instruction).await
+                self.ai_write_reply(a.message_id, &a.instruction, a.live.as_deref())
+                    .await
             }
             "ai_short_replies" => {
                 let a: WriteReplyArg = from_json(args)?;
@@ -2524,6 +2578,21 @@ impl Engine {
         }
         let _guard = SyncGuard(&self.syncing, account_id);
         self.store.note_sync_try(account_id)?;
+        // New mail a full refresh finds stays out of sight until every folder has been looked
+        // through, which can take a while. With filters on, the inbox's news goes through them
+        // first, on its own, so filtered mail shows as soon as when the server tells us.
+        // A problem here costs nothing: the full refresh below finds the same mail.
+        let news = if self.has_filters(&account) {
+            match self.news_first(&account, quiet_now).await {
+                Ok(news) => news,
+                Err(e) => {
+                    tracing::debug!("news first: {e}");
+                    SyncStats::default()
+                }
+            }
+        } else {
+            SyncStats::default()
+        };
         let attempt = || async {
             let password = self.password(account_id).await?;
             let mut options = self.options.clone();
@@ -2567,6 +2636,9 @@ impl Engine {
         let mut stats = synced?;
         self.act_on_new_mail(&account, &mut stats, quiet_now)
             .await?;
+        stats.new_messages += news.new_messages;
+        stats.bodies_fetched += news.bodies_fetched;
+        stats.filtered += news.filtered;
         if let Err(e) = self.work_out_meanings() {
             stats.errors.push(e.to_string());
         }
@@ -2584,6 +2656,53 @@ impl Engine {
 
     /// The server has said something changed in the inbox, so it's looked at straight away,
     /// whatever a longer refresh is busy with. The other folders wait for that refresh.
+    /// How a quick look at just what's new in the inbox goes.
+    fn news_options(&self, account: &Account) -> sync::SyncOptions {
+        // Filters that read what's inside keep new mail out of sight until it's here, so with
+        // one of those every new email's body comes down with the news, not only the first few.
+        sync::SyncOptions {
+            inbox_bodies: if self.rules_read_bodies(account) {
+                BODIES_WITH_NEW_MAIL_FILTERED
+            } else {
+                BODIES_WITH_NEW_MAIL
+            },
+            ..self.options.clone()
+        }
+    }
+
+    /// Only what's just landed in the inbox, through the filters and out to the person,
+    /// without the rest of the inbox or the other folders.
+    async fn news_first(&self, account: &Account, quiet_now: bool) -> Result<SyncStats> {
+        let Some(inbox) = self
+            .store
+            .list_folders(account.id)?
+            .into_iter()
+            .find(|f| f.role == "inbox")
+        else {
+            return Ok(SyncStats::default());
+        };
+        let password = self.password(account.id).await?;
+        let options = self.news_options(account);
+        let mut conn = ImapConnection::connect(account, &password, self.reach()).await?;
+        let ring = self.pgp_ring(account.id);
+        let mut news = sync::look_for_new_mail(
+            &mut conn,
+            &self.store,
+            account.id,
+            inbox.id,
+            &inbox.path,
+            "inbox",
+            &options,
+            &ring,
+        )
+        .await?;
+        conn.logout().await;
+        if !news.new_mail.is_empty() {
+            self.act_on_new_mail(account, &mut news, quiet_now).await?;
+        }
+        Ok(news)
+    }
+
     async fn sync_inbox(&self, account_id: i64, quiet_now: bool) -> Result<SyncStats> {
         let account = self.store.account(account_id)?;
         let Some(inbox) = self
@@ -2595,10 +2714,7 @@ impl Engine {
             return Ok(SyncStats::default());
         };
         let password = self.password(account_id).await?;
-        let options = sync::SyncOptions {
-            inbox_bodies: BODIES_WITH_NEW_MAIL,
-            ..self.options.clone()
-        };
+        let options = self.news_options(&account);
         let mut conn = ImapConnection::connect(&account, &password, self.reach()).await?;
         let ring = self.pgp_ring(account_id);
         let mut news = sync::look_for_new_mail(

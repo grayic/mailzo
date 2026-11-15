@@ -1650,7 +1650,13 @@ impl Engine {
         } else if quietly {
             return Ok(json!({ "kind": "page", "url": link }));
         } else if let Some(open) = &self.url_opener {
-            open(&link);
+            if exit.one_click {
+                // Turned away, often by a check that lets only browsers through. The browser
+                // sends the one click itself: just visiting, some of these links refuse.
+                open(&one_click_page(message_id, &link).unwrap_or(link));
+            } else {
+                open(&link);
+            }
             "opened"
         } else {
             // In a browser, the page opens it in the person's own browser.
@@ -1668,6 +1674,34 @@ impl Engine {
         let words: Vec<(String, i64, i64)> = serde_json::from_str(json_text).unwrap_or_default();
         self.store.merge_words(&words)
     }
+}
+
+/// A page for the person's browser that sends a sender's one-click unsubscribe, as mail
+/// servers do, and shows what the sender answers.
+fn one_click_page(message_id: i64, link: &str) -> Option<String> {
+    let action = link
+        .replace('&', "&amp;")
+        .replace('"', "&quot;")
+        .replace('<', "&lt;");
+    // A new file each time, readable by this person only, never one that's already there.
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()?
+        .as_nanos();
+    let path = std::env::temp_dir().join(format!("mailzo-unsubscribe-{message_id}-{nanos}.html"));
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+    std::io::Write::write_all(
+        &mut options.open(&path).ok()?,
+        format!(
+            r#"<!doctype html><meta charset="utf-8"><title>Unsubscribe</title><form method="post" action="{action}"><input type="hidden" name="List-Unsubscribe" value="One-Click"><button>Unsubscribe</button></form><script>document.forms[0].submit()</script>"#
+        )
+        .as_bytes(),
+    )
+    .ok()?;
+    Some(reqwest::Url::from_file_path(&path).ok()?.to_string())
 }
 
 /// A client that can only reach the one address that was checked for this link.

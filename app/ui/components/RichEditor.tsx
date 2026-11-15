@@ -31,6 +31,14 @@ import { tx } from "../i18n";
 
 const MAX_INLINE_IMAGE = 5 * 1024 * 1024;
 
+/** Types words out where the cursor is, as they come. */
+export type Typer = {
+  /** More words, typed after those before. */
+  add: (text: string) => void;
+  /** Waits for every word to be in. With html, what was typed is swapped for it ("" takes it out). */
+  end: (html?: string) => Promise<void>;
+};
+
 // These become part of the email itself, which other mail apps show without any
 // of this app's styles, so they are written out as real sizes and colours.
 const SIZES = [
@@ -261,7 +269,7 @@ export function RichEditor({
   toolbar = true,
 }: {
   /** Lets the panel around it type words out where the cursor is, a few at a time. */
-  typeRef?: React.RefObject<((text: string) => Promise<void>) | null>;
+  typeRef?: React.RefObject<(() => Typer) | null>;
   /** Said where the writing goes, while something is being written for an empty message. */
   busy?: string;
   /** Formatting tools under the text. Off keeps writing plain and the box calm. */
@@ -336,27 +344,55 @@ export function RichEditor({
       editor?.chain().focus().insertContent(textAsHtml(text)).run();
     };
     if (typeRef) {
-      // Like a chat answer: words appear as they come, not all at once. Lines become
-      // paragraphs. It stops if the editor goes away, as when the reply is closed.
-      // Whatever is due goes in once per frame, as one change, so it runs evenly however
-      // long the reply is; a long one takes about a second and a half.
-      typeRef.current = async (text) => {
-        const parts = text.split(/(\n|[^\S\n]+)/).filter(Boolean);
-        const takes = Math.min(1500, parts.length * 30);
-        const started = performance.now();
-        editor?.commands.focus();
-        let shown = 0;
-        while (shown < parts.length) {
-          await new Promise((next) => requestAnimationFrame(next));
-          if (!editor || editor.isDestroyed) return;
-          const due = Math.min(parts.length, Math.ceil(((performance.now() - started) / takes) * parts.length));
-          let chain = editor.chain();
-          for (const part of parts.slice(shown, due)) {
-            chain = part === "\n" ? chain.splitBlock() : chain.insertContent({ type: "text", text: part });
+      // Like a chat answer: words appear as they come, where the cursor is, and lines become
+      // paragraphs. Whatever is due goes in once per frame, as one change, spread evenly so
+      // what's waiting is in within a second and a half. It stops if the editor goes away,
+      // as when the reply is closed.
+      typeRef.current = () => {
+        const parts: string[] = [];
+        let typed = "";
+        let from = -1;
+        let last = 0;
+        let until = 0;
+        let typing: Promise<void> | null = null;
+        const type = async () => {
+          while (parts.length) {
+            await new Promise((next) => requestAnimationFrame(next));
+            if (!editor || editor.isDestroyed) break;
+            const now = performance.now();
+            const due = now >= until ? parts.length : Math.ceil((parts.length * (now - last)) / (until - last));
+            last = now;
+            let chain = editor.chain();
+            for (const part of parts.splice(0, due)) {
+              chain = part === "\n" ? chain.splitBlock() : chain.insertContent({ type: "text", text: part });
+            }
+            chain.run();
           }
-          chain.run();
-          shown = due;
-        }
+          typing = null;
+        };
+        return {
+          add: (text) => {
+            if (!text || !editor || editor.isDestroyed) return;
+            if (from < 0) {
+              editor.commands.focus();
+              from = editor.state.selection.from;
+            }
+            typed += text;
+            parts.push(...text.split(/(\n|[^\S\n]+)/).filter(Boolean));
+            last = performance.now();
+            until = last + Math.min(1500, parts.length * 30);
+            typing ??= type();
+          },
+          end: async (html) => {
+            while (typing) await typing;
+            if (html === undefined || from < 0 || !editor || editor.isDestroyed) return;
+            const to = editor.state.selection.to;
+            // Only while it's just as typed, so nothing they wrote meanwhile is ever replaced.
+            if (to < from || editor.state.doc.textBetween(from, to, "\n") !== typed) return;
+            const chain = editor.chain();
+            (html ? chain.insertContentAt({ from, to }, html) : chain.deleteRange({ from, to })).run();
+          },
+        };
       };
     }
     return () => {

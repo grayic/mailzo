@@ -681,7 +681,10 @@ async fn signed_in(provider: &str, url: &str) -> (Engine, i64) {
             scope: "mail".into(),
             extra_consent: None,
             extra: vec![],
-            servers: None,
+            servers: mailcore::signin::Servers {
+                imap: ("127.0.0.1".into(), 9, mailcore::model::Security::Plain),
+                smtp: ("127.0.0.1".into(), 9, mailcore::model::SmtpSecurity::Plain),
+            },
         });
     (engine, account.id)
 }

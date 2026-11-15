@@ -470,7 +470,7 @@ async fn main() {
         scope: "mail".into(),
         extra_consent: None,
         extra: vec![],
-        servers: Some(mailcore::signin::Servers {
+        servers: mailcore::signin::Servers {
             imap: (
                 "127.0.0.1".into(),
                 port(1143),
@@ -481,7 +481,7 @@ async fn main() {
                 port(1025),
                 mailcore::model::SmtpSecurity::Plain,
             ),
-        }),
+        },
     };
 
     // The demo's stand-in for the AI company, with its key in fakeai::GOOD_KEY.

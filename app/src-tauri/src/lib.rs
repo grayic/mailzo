@@ -1,7 +1,7 @@
 use mailcore::model::{Security, SmtpSecurity};
 use mailcore::signin::{MailSignIn, Servers};
 use mailcore::{CoreError, Engine, HelperStore, KeychainStore, SecretStore, Store};
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::sync::{Arc, Mutex};
 #[cfg(desktop)]
 use tauri::webview::NewWindowResponse;
@@ -856,6 +856,7 @@ pub fn run() {
             let file_handle = app.handle().clone();
             let alert_handle = app.handle().clone();
             let new_mail_handle = app.handle().clone();
+            let writing_handle = app.handle().clone();
             let downloads = match selftest_env("INBOX_SELFTEST_DATA") {
                 Some(d) => std::path::Path::new(&d).join("downloads"),
                 // A phone has no Downloads folder. Files go in the app's own documents.
@@ -880,6 +881,10 @@ pub fn run() {
                 .with_new_mail_listener(Arc::new(move |_account: i64| {
                     let _ = new_mail_handle.emit("new-mail", ());
                 }))
+                // A reply shows in the composer as the AI writes it.
+                .with_writing_listener(Arc::new(move |id: &str, piece: &str| {
+                    let _ = writing_handle.emit("ai-writing", json!({ "id": id, "text": piece }));
+                }))
                 .with_url_opener(Arc::new(move |url: &str| {
                     open_sign_in_page(&opener_handle, url);
                 }));
@@ -902,10 +907,10 @@ pub fn run() {
                         scope: "mail".into(),
                         extra_consent: None,
                         extra: vec![],
-                        servers: Some(Servers {
+                        servers: Servers {
                             imap: ("127.0.0.1".into(), 1143, Security::Plain),
                             smtp: ("127.0.0.1".into(), 1025, SmtpSecurity::Plain),
-                        }),
+                        },
                     });
                 }
             } else {

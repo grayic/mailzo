@@ -322,12 +322,15 @@ async fn a_page_opens_and_says_so_and_one_click_falls_back_to_it_if_refused() {
     assert_eq!(r.leave("deals@shop.test").await.unwrap()["kind"], "opened");
     assert_eq!(r.row("deals@shop.test").await["left"]["how"], "opened");
 
-    // Nothing answers at this made-up address, so the one click can't have worked.
+    // Nothing answers at this made-up address, so the one click can't have worked. Some
+    // senders only take the one click and turn away anything but a browser, so the browser
+    // sends it instead of just visiting the link.
     assert_eq!(r.leave("hi@click.test").await.unwrap()["kind"], "opened");
-    assert_eq!(
-        *r.opened.lock().unwrap(),
-        ["https://shop.test/out", "https://click.test/out"]
-    );
+    let opened = r.opened.lock().unwrap().clone();
+    assert_eq!(opened[0], "https://shop.test/out");
+    let page = std::fs::read_to_string(opened[1].strip_prefix("file://").unwrap()).unwrap();
+    assert!(page.contains(r#"<form method="post" action="https://click.test/out">"#));
+    assert!(page.contains(r#"name="List-Unsubscribe" value="One-Click""#));
 }
 
 #[tokio::test]

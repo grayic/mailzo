@@ -26,6 +26,9 @@ env > "$here/env"
 cat > "$here/input"
 if [ -f "$here/out-of-limit" ]; then echo '{"is_error":true,"result":"Claude usage limit reached"}'; exit 1; fi
 if [ ! -f "$here/signed-in" ]; then echo '{"is_error":true,"result":"Not logged in · Please run /login"}'; exit 1; fi
+# Like the real one: what it's doing and the answer in pieces, then the result last.
+echo '{"type":"system","subtype":"init"}'
+echo '{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"text_delta","text":"{\"ok"}}}'
 if [ -f "$here/answer" ]; then
   python3 -c "import json,sys; print(json.dumps({'is_error':False,'result':open(sys.argv[1]).read()}))" "$here/answer"
 else
@@ -143,6 +146,8 @@ async fn an_email_can_never_reach_a_tool_or_the_command_line() {
         .iter()
         .any(|a| a.contains("dangerously") || a.contains("bypass")));
     assert_eq!(after("--model"), "haiku");
+    assert_eq!(after("--output-format"), "stream-json");
+    assert!(args.iter().any(|a| a == "--include-partial-messages"));
     assert!(
         r.file("where").trim().ends_with("data/ai-empty"),
         "starts somewhere empty"

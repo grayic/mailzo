@@ -26,6 +26,8 @@ struct Rig {
     paid: Arc<FakePaid>,
     account: i64,
     alerts: Arc<Mutex<Vec<String>>>,
+    /// Pieces of replies shown as they're written, with the id each was asked with.
+    pieces: Arc<Mutex<Vec<(String, String)>>>,
 }
 
 fn mail(id: &str, from: &str, subject: &str, body: &str) -> String {
@@ -67,6 +69,8 @@ async fn rig() -> Rig {
     let ai = FakeAi::start().await;
     let alerts: Arc<Mutex<Vec<String>>> = Arc::default();
     let log = alerts.clone();
+    let pieces: Arc<Mutex<Vec<(String, String)>>> = Arc::default();
+    let shown = pieces.clone();
     let engine = Engine::new(
         Store::open_in_memory().unwrap(),
         Arc::new(MemoryStore::default()),
@@ -76,6 +80,9 @@ async fn rig() -> Rig {
     .with_embedder(fake_embedder())
     .with_alert_sender(Arc::new(move |a: &mailcore::alerts::Alert| {
         log.lock().unwrap().push(a.title.clone());
+    }))
+    .with_writing_listener(Arc::new(move |id: &str, piece: &str| {
+        shown.lock().unwrap().push((id.into(), piece.into()));
     }));
     let paid = FakePaid::new();
     let engine = engine.with_paid_ai(paid.clone());
@@ -100,6 +107,7 @@ async fn rig() -> Rig {
         paid,
         account,
         alerts,
+        pieces,
     }
 }
 
@@ -240,6 +248,30 @@ async fn a_rule_is_read_previewed_saved_and_then_acts_on_new_mail() {
         .subjects("inbox")
         .await
         .contains(&"Third invoice".to_string()));
+}
+
+#[tokio::test]
+async fn a_filter_that_reads_inside_files_a_whole_batch_in_one_quick_look() {
+    let r = rig().await;
+    r.sync().await;
+    r.call("rule_save", json!({ "rule": stripe_rule() })).await;
+    // More arrive at once than the quick look used to bring down whole. Each needs its
+    // body before the filter can tell, so none should be left waiting for a full refresh.
+    for n in 0..8 {
+        r.add(
+            &format!("bill{n}@t"),
+            "Stripe <bill@stripe.com>",
+            &format!("Stripe receipt {n}"),
+            "Your invoice is ready",
+        );
+    }
+    r.call(
+        "sync_account",
+        json!({ "account_id": r.account, "inbox_only": true }),
+    )
+    .await;
+    assert_eq!(r.server.folder_messages("Accounts").len(), 8);
+    assert!(r.subjects("inbox").await.is_empty());
 }
 
 #[tokio::test]
@@ -795,6 +827,52 @@ async fn email_text_goes_as_material_and_replies_come_back_as_text() {
         .contains("<email "));
     // Nothing was sent to anyone.
     assert_eq!(r.outgoing.received().len(), 0);
+}
+
+#[tokio::test]
+async fn a_reply_shows_while_it_is_written() {
+    let r = rig().await;
+    r.add(
+        "lunch@t",
+        "Ana <ana@test.test>",
+        "Lunch",
+        "Lunch on Friday?",
+    );
+    r.sync().await;
+    r.turn_on_ai().await;
+    let reply = "Hi Ana,\n\nFriday works. \"Noon\" at Café Lumière? 😀";
+    r.ai.answer("lunch on friday", json!({ "reply": reply }));
+    let t = r.list("inbox").await[0].clone();
+    let msgs = r
+        .call(
+            "get_thread",
+            json!({ "account_id": r.account, "thread_id": t["thread_id"] }),
+        )
+        .await;
+    let id = msgs[0]["id"].clone();
+    let out = r
+        .call("ai_write_reply", json!({ "message_id": id, "live": "w1" }))
+        .await;
+    assert_eq!(out["reply"], reply);
+    assert_eq!(r.ai.requests().last().unwrap()["stream"], true);
+    let pieces = r.pieces.lock().unwrap().clone();
+    assert!(pieces.len() > 3, "it came a piece at a time");
+    assert!(pieces.iter().all(|(asked, _)| asked == "w1"));
+    let shown: String = pieces.iter().map(|(_, p)| p.as_str()).collect();
+    assert_eq!(shown, reply);
+
+    // Written ahead, with no screen asking, it comes whole.
+    r.call("ai_write_reply", json!({ "message_id": id })).await;
+    assert!(r.ai.requests().last().unwrap()["stream"].is_null());
+    // With best drafts on, it shows only once it's been checked.
+    r.call(
+        "set_setting",
+        json!({ "key": "ai_best_drafts", "value": "on" }),
+    )
+    .await;
+    r.call("ai_write_reply", json!({ "message_id": id, "live": "w2" }))
+        .await;
+    assert_eq!(r.pieces.lock().unwrap().len(), pieces.len());
 }
 
 #[tokio::test]
@@ -1470,7 +1548,10 @@ async fn provider_rig(provider: &str, url: &str) -> (Engine, i64) {
             scope: "mail".into(),
             extra_consent: None,
             extra: vec![],
-            servers: None,
+            servers: mailcore::signin::Servers {
+                imap: ("127.0.0.1".into(), 9, mailcore::model::Security::Plain),
+                smtp: ("127.0.0.1".into(), 9, mailcore::model::SmtpSecurity::Plain),
+            },
         });
     (engine, account.id)
 }

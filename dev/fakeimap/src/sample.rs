@@ -119,4 +119,104 @@ pub fn seed(server: &FakeServer) {
         true,
         "01-Nov-2026 12:00:00 +0000",
     );
+
+    // Receipts and renewal emails for Purchases › Subscriptions, filed in Archive so the
+    // inbox stays as it was.
+    let paid = |from: &str, id: &str, subject: &str, day: &str, body: &str| {
+        let header = format!("{} 08:00:00 +0000", day.replace('-', " "));
+        let internal = format!("{day} 08:00:00 +0000");
+        server.add_message_dated(
+            "Archive",
+            &msg(from, id, "", subject, &header, body),
+            true,
+            &internal,
+        );
+    };
+    for (i, day) in ["05-Jul-2026", "05-Aug-2026", "05-Sep-2026", "05-Oct-2026"]
+        .iter()
+        .enumerate()
+    {
+        paid(
+            "Pixelboard <billing@pixelboard.test>",
+            &format!("pixelboard-{i}@pixelboard.test"),
+            "Your Pixelboard receipt",
+            day,
+            "Thanks for your payment.\n\nProfessional plan, billed monthly.\nTotal: $15.00",
+        );
+        paid(
+            "Tasklane <invoice+statements@stripe.com>",
+            &format!("tasklane-{i}@stripe.test"),
+            &format!("Your receipt from Tasklane #20{i}"),
+            &day.replace("05-", "12-"),
+            "Tasklane Standard, per month.\nAmount paid $8.00",
+        );
+        paid(
+            "Streamly <no-reply@streamly.test>",
+            &format!("streamly-{i}@streamly.test"),
+            "Your Streamly Premium receipt",
+            &day.replace("05-", "20-"),
+            "Premium Individual, monthly. Total $11.99",
+        );
+    }
+    paid(
+        "Pixelboard <billing@pixelboard.test>",
+        "pixelboard-5@pixelboard.test",
+        "Your Pixelboard receipt",
+        "05-Nov-2026",
+        "Thanks for your payment.\n\nProfessional plan, billed monthly.\nTotal: $15.00",
+    );
+    paid(
+        "Tasklane <invoice+statements@stripe.com>",
+        "tasklane-5@stripe.test",
+        "Your receipt from Tasklane #205",
+        "12-Nov-2026",
+        "Tasklane Standard, per month.\nAmount paid $8.00",
+    );
+    paid(
+        "Streamly <no-reply@streamly.test>",
+        "streamly-cancel@streamly.test",
+        "Your subscription has been cancelled",
+        "25-Oct-2026",
+        "We're sorry to see you go. You'll keep Premium until November 20, 2026.",
+    );
+    paid(
+        "Notewell Team <team@notewell.test>",
+        "notewell-1@notewell.test",
+        "Your Notewell receipt",
+        "01-Mar-2026",
+        "Plus plan, billed annually.\nAmount paid $96.00",
+    );
+    paid(
+        "Domainly <support@domainly.test>",
+        "domainly-1@domainly.test",
+        "Renewal reminder: northwind.test",
+        "10-Nov-2026",
+        "Your domain will renew on November 19, 2026 for $14.58 a year.",
+    );
+    for (i, day) in ["01-Aug-2026", "01-Sep-2026", "01-Oct-2026"]
+        .iter()
+        .enumerate()
+    {
+        paid(
+            "Canvaso <billing@canvaso.test>",
+            &format!("canvaso-{i}@canvaso.test"),
+            "Your Canvaso Pro receipt",
+            day,
+            "Canvaso Pro, monthly. Total $14.99",
+        );
+    }
+    paid(
+        "Cloudvault <billing@cloudvault.test>",
+        "cloudvault-1@cloudvault.test",
+        "Your Cloudvault receipt",
+        "15-Oct-2026",
+        "Cloudvault 2 TB, monthly. Total $9.99",
+    );
+    paid(
+        "Cloudvault <billing@cloudvault.test>",
+        "cloudvault-2@cloudvault.test",
+        "Your payment failed",
+        "15-Nov-2026",
+        "We couldn't charge your card. Update your card to keep your 2 TB.",
+    );
 }

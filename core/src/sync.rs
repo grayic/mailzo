@@ -52,6 +52,9 @@ const COMPARE_EVERY_SECONDS: i64 = 86_400;
 const HEADER_BATCH: usize = 500;
 const FLAG_BATCH: usize = 5_000;
 const BODIES_PER_ROUND: usize = 200;
+/// The quick look at new mail stops bringing bodies down after this long, so a burst of big
+/// emails never keeps the rest out of sight. Whatever's left comes with the full look.
+const NEWS_BODY_SECONDS: u64 = 8;
 
 /// Applies the person's choices of which folder does which job. A folder they chose
 /// takes the job from whichever folder the server gave it to.
@@ -172,7 +175,17 @@ pub async fn look_for_new_mail(
     let budget = new_uids.len().min(opts.inbox_bodies);
     let since = now() - opts.body_days * 86_400;
     let wanted = store.bodies_wanted(folder_id, since, opts.body_max_bytes, budget)?;
-    fetch_bodies(conn, store, folder_id, &wanted, None, ring, &mut stats).await?;
+    let until = Instant::now() + Duration::from_secs(NEWS_BODY_SECONDS);
+    fetch_bodies(
+        conn,
+        store,
+        folder_id,
+        &wanted,
+        Some(until),
+        ring,
+        &mut stats,
+    )
+    .await?;
     Ok(stats)
 }
 

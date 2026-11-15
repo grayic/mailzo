@@ -235,6 +235,80 @@ pub(crate) fn without_code_fence(text: &str) -> &str {
     }
 }
 
+/// Handed the answer's text so far each time more of it arrives, while the AI writes it.
+pub(crate) type Live<'a> = &'a (dyn Fn(&str) + Send + Sync);
+
+/// The words of one string field so far, read from JSON that's still arriving, so a reply can
+/// show while it's written. It stops before an escape that hasn't fully arrived, so each read
+/// only ever adds to the last.
+pub(crate) fn text_so_far(raw: &str, field: &str) -> Option<String> {
+    let key = format!("\"{field}\"");
+    let rest = &raw[raw.find(&key)? + key.len()..];
+    let rest = rest.trim_start().strip_prefix(':')?.trim_start();
+    let mut chars = rest.strip_prefix('"')?.chars();
+    let hex = |s: &str| s.get(..4).and_then(|h| u16::from_str_radix(h, 16).ok());
+    let mut out = String::new();
+    while let Some(c) = chars.next() {
+        let c = match c {
+            '"' => break,
+            '\\' => match chars.next() {
+                None => break,
+                Some('n') => '\n',
+                Some('t') => '\t',
+                Some('r') => '\r',
+                Some('b') => '\u{8}',
+                Some('f') => '\u{c}',
+                Some('u') => {
+                    let after = chars.as_str();
+                    let Some(unit) = hex(after) else { break };
+                    // Emoji and the like come as two halves, and need both.
+                    let (decoded, used) = if (0xD800..0xDC00).contains(&unit) {
+                        let Some(low) = after
+                            .get(4..)
+                            .and_then(|s| s.strip_prefix("\\u"))
+                            .and_then(hex)
+                        else {
+                            break;
+                        };
+                        (
+                            char::decode_utf16([unit, low]).next().and_then(|r| r.ok()),
+                            10,
+                        )
+                    } else {
+                        (char::from_u32(unit.into()), 4)
+                    };
+                    let Some(decoded) = decoded else { break };
+                    chars = after[used..].chars();
+                    decoded
+                }
+                Some(other) => other,
+            },
+            c => c,
+        };
+        out.push(c);
+    }
+    Some(out)
+}
+
+/// A streamed answer, a line at a time as it arrives. Bytes wait for the end of their line, so
+/// a letter split between two pieces still reads whole.
+async fn each_line(mut reply: reqwest::Response, mut on_line: impl FnMut(&str)) -> Result<()> {
+    let mut pending: Vec<u8> = Vec::new();
+    while let Some(piece) = reply
+        .chunk()
+        .await
+        .map_err(|_| ai_error("ai_network", "Couldn't reach the AI service."))?
+    {
+        pending.extend_from_slice(&piece);
+        while let Some(end) = pending.iter().position(|&b| b == b'\n') {
+            let line: Vec<u8> = pending.drain(..=end).collect();
+            on_line(String::from_utf8_lossy(&line).trim_end());
+        }
+    }
+    on_line(String::from_utf8_lossy(&pending).trim_end());
+    Ok(())
+}
+
 fn failure(status: u16, said: &str) -> CoreError {
     let said = said.to_lowercase();
     match status {
@@ -509,6 +583,7 @@ impl Engine {
             crate::question::fallback_schema(),
             // Trying the person's own key.
             false,
+            None,
         )
         .await?;
         self.secrets.set(AI_KEY, key)?;
@@ -627,7 +702,8 @@ impl Engine {
         question: &str,
         schema: Value,
     ) -> Result<String> {
-        self.ask_model(false, key, system, question, schema).await
+        self.ask_model(false, key, system, question, schema, None)
+            .await
     }
 
     /// For writing and answering, where the person can choose the model.
@@ -638,7 +714,22 @@ impl Engine {
         question: &str,
         schema: Value,
     ) -> Result<String> {
-        self.ask_model(true, key, system, question, schema).await
+        self.ask_model(true, key, system, question, schema, None)
+            .await
+    }
+
+    /// Writing, with the answer handed to `live` as it's written. Claude does that, with a key
+    /// or a plan; the others give it all at the end.
+    pub(crate) async fn ask_writer_live(
+        &self,
+        key: &str,
+        system: &str,
+        question: &str,
+        schema: Value,
+        live: Option<Live<'_>>,
+    ) -> Result<String> {
+        self.ask_model(true, key, system, question, schema, live)
+            .await
     }
 
     async fn ask_model(
@@ -648,6 +739,7 @@ impl Engine {
         system: &str,
         question: &str,
         schema: Value,
+        live: Option<Live<'_>>,
     ) -> Result<String> {
         if key == crate::on_device::ON_DEVICE_NOT_A_KEY {
             return self.ask_on_device(system, question, schema).await;
@@ -656,7 +748,7 @@ impl Engine {
             let system = format!(
                 "{system}\n\nReply with only a JSON object matching this JSON schema, with no other text: {schema}"
             );
-            return self.ask_plan(plan, writing, &system, question).await;
+            return self.ask_plan(plan, writing, &system, question, live).await;
         }
         // AI included with Cloud is always ours, with the usual models, within its budget.
         // Decided once, here, by whose key this request really carries, and kept to the
@@ -696,6 +788,7 @@ impl Engine {
                 question,
                 schema.clone(),
                 included,
+                live,
             )
             .await
         {
@@ -707,8 +800,10 @@ impl Engine {
                     self.save_picks(&picks)?;
                 }
                 let model = model_for(service, &picks, writing);
-                self.send_to_ai(service, &model, key, system, question, schema, included)
-                    .await
+                self.send_to_ai(
+                    service, &model, key, system, question, schema, included, live,
+                )
+                .await
             }
             other => other,
         }
@@ -724,11 +819,14 @@ impl Engine {
         question: &str,
         schema: Value,
         included: bool,
+        live: Option<Live<'_>>,
     ) -> Result<String> {
         match service.style {
             Style::Anthropic => {
-                self.send_anthropic(service, model, key, system, question, schema, included)
-                    .await
+                self.send_anthropic(
+                    service, model, key, system, question, schema, included, live,
+                )
+                .await
             }
             Style::OpenAi => {
                 self.send_openai_style(service, model, key, system, question, schema, included)
@@ -747,8 +845,9 @@ impl Engine {
         question: &str,
         schema: Value,
         included: bool,
+        live: Option<Live<'_>>,
     ) -> Result<String> {
-        let body = json!({
+        let mut body = json!({
             "model": model,
             "max_tokens": MOST_ANSWER_TOKENS,
             // The instructions, style profile included, are the same each time, so the AI
@@ -757,6 +856,9 @@ impl Engine {
             "messages": [{ "role": "user", "content": question }],
             "output_config": { "format": { "type": "json_schema", "schema": schema } },
         });
+        if live.is_some() {
+            body["stream"] = json!(true);
+        }
         let reply = self
             .ai_http
             .post(format!("{}/v1/messages", self.ai_base(service)))
@@ -767,7 +869,41 @@ impl Engine {
             .await
             .map_err(|_| ai_error("ai_network", "Couldn't reach the AI service."))?;
         let status = reply.status().as_u16();
-        let value: Value = reply.json().await.unwrap_or(Value::Null);
+        let value: Value = match live {
+            Some(live) if status == 200 => {
+                // Pieces as they're written, put back together into the usual answer.
+                let (mut text, mut usage, mut stop) = (String::new(), Value::Null, Value::Null);
+                each_line(reply, |line| {
+                    let Some(data) = line.strip_prefix("data:") else {
+                        return;
+                    };
+                    let Ok(event) = serde_json::from_str::<Value>(data.trim()) else {
+                        return;
+                    };
+                    match event["type"].as_str() {
+                        Some("message_start") => usage = event["message"]["usage"].clone(),
+                        Some("content_block_delta") => {
+                            if let Some(piece) = event["delta"]["text"].as_str() {
+                                text.push_str(piece);
+                                live(&text);
+                            }
+                        }
+                        Some("message_delta") => {
+                            stop = event["delta"]["stop_reason"].clone();
+                            for (name, count) in event["usage"].as_object().into_iter().flatten() {
+                                usage[name] = count.clone();
+                            }
+                        }
+                        // The service's own words for what went wrong, never the reply's.
+                        Some("error") => stop = event["error"]["type"].clone(),
+                        _ => {}
+                    }
+                })
+                .await?;
+                json!({ "stop_reason": stop, "usage": usage, "content": [{ "type": "text", "text": text }] })
+            }
+            _ => reply.json().await.unwrap_or(Value::Null),
+        };
         if status != 200 {
             return Err(failure(
                 status,
@@ -990,6 +1126,30 @@ mod tests {
             "{\"a\":\"x}\"}"
         );
         assert_eq!(without_code_fence("no json here"), "no json here");
+    }
+
+    #[test]
+    fn a_reply_reads_right_however_its_answer_is_cut() {
+        // Quotes, new lines, a backslash, an accent written out, an emoji in two halves.
+        let raw = r#"```json
+{ "reply" : "Hi \"Sam\",\n\nCafé at 5 \\ ok? 😀 Thanks.\tBye" }
+```"#;
+        let whole = "Hi \"Sam\",\n\nCafé at 5 \\ ok? 😀 Thanks.\tBye";
+        assert_eq!(text_so_far(raw, "reply").as_deref(), Some(whole));
+        let mut last = String::new();
+        for (cut, _) in raw.char_indices() {
+            let Some(so_far) = text_so_far(&raw[..cut], "reply") else {
+                assert!(last.is_empty(), "nothing goes missing after it's started");
+                continue;
+            };
+            assert!(so_far.starts_with(&last), "only ever adds: {so_far:?}");
+            assert!(
+                whole.starts_with(&so_far),
+                "never half a letter: {so_far:?}"
+            );
+            last = so_far;
+        }
+        assert_eq!(text_so_far("{\"other\": \"x\"}", "reply"), None);
     }
 
     #[test]

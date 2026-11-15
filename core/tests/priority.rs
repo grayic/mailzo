@@ -926,6 +926,18 @@ fn bank_alerts_and_receipts_never_ask_you_something() {
     facts.subject = "Can you look at this?";
     facts.text = "Could you send it by Friday?";
     assert_eq!(decide(&facts).group, NEEDS_YOU);
+    // Nor is a customer asking about a refund or a bill, though the subject reads like one.
+    facts.subject = "Refund please";
+    facts.text = "Could you refund my last payment?";
+    assert_eq!(decide(&facts).group, NEEDS_YOU);
+    facts.subject = "Billing question?";
+    facts.text = "Why was I charged twice?";
+    assert_eq!(decide(&facts).group, NEEDS_YOU);
+    // The shop's own refund notice is still a record.
+    facts.from = "no-reply@shop.test";
+    facts.subject = "Your refund is on its way";
+    facts.text = "Questions? Reply to this email.";
+    assert_eq!(decide(&facts).group, GOOD_TO_KNOW);
 }
 
 #[test]

@@ -16,6 +16,7 @@ import { BulkPanel } from "./components/BulkPanel";
 import { CalendarView } from "./components/CalendarView";
 import { ContactsView, forgetContacts } from "./components/ContactsView";
 import { forgetNewsletters, Newsletters, type NewsletterPlace } from "./components/Newsletters";
+import { PurchaseTabs, Subscriptions } from "./components/Subscriptions";
 import { CommandBar, type Command } from "./components/CommandBar";
 import { Composer } from "./components/Composer";
 import { type AskAbout, AskChat } from "./components/AskChat";
@@ -180,6 +181,8 @@ type View =
   /** Chat with the inbox. */
   | { kind: "ask"; about?: AskAbout }
   | { kind: "newsletters"; place?: NewsletterPlace }
+  /** The subscriptions side of Purchases. */
+  | { kind: "subscriptions" }
   | { kind: "contacts" }
   /** Everyone with mail in these folders, as one row each. */
   | { kind: "senders"; folderIds: number[]; title: string; back: View }
@@ -555,7 +558,7 @@ function Mail({
     const shown = viewRef.current;
     const unread = unreadOnlyRef.current;
     const generation = listGeneration.current;
-    if (shown.kind === "drafts" || shown.kind === "scheduled" || shown.kind === "screener" || shown.kind === "calendar" || shown.kind === "ask" || shown.kind === "contacts" || shown.kind === "newsletters") return;
+    if (shown.kind === "drafts" || shown.kind === "scheduled" || shown.kind === "screener" || shown.kind === "calendar" || shown.kind === "ask" || shown.kind === "contacts" || shown.kind === "newsletters" || shown.kind === "subscriptions") return;
     if (shown.kind === "senders") {
       const lists = await Promise.all(shown.folderIds.map((id) => api.listSenders(id)));
       if (viewRef.current === shown) {
@@ -3040,6 +3043,7 @@ function Mail({
       { id: "scheduled", label: tx("Go to Scheduled"), section: tx("Go to"), run: () => show({ kind: "scheduled" }) },
       { id: "screener", label: tx("Go to New senders"), section: tx("Go to"), run: () => show({ kind: "screener" }) },
       { id: "purchases", label: tx("Go to Purchases"), section: tx("Go to"), run: () => show({ kind: "later", which: "purchases" }) },
+      { id: "subscriptions", label: tx("Go to Subscriptions"), section: tx("Go to"), run: () => show({ kind: "subscriptions" }) },
       { id: "deadlines", label: tx("Go to Deadlines"), section: tx("Go to"), run: () => show({ kind: "later", which: "deadlines" }) },
       { id: "no_reply", label: tx("Go to No reply yet"), section: tx("Go to"), run: () => show({ kind: "later", which: "no_reply" }) },
       { id: "refresh", label: tx("Refresh mail"), section: "Mail", run: refreshNow },
@@ -3365,7 +3369,7 @@ function Mail({
             { id: "calendar", label: tx("Calendar"), icon: Calendar03Icon, more: true, count: 0, current: view.kind === "calendar", onClick: () => show({ kind: "calendar" }) },
             { id: "contacts", label: tx("Contacts"), icon: ContactBookIcon, more: true, count: 0, current: view.kind === "contacts", onClick: () => show({ kind: "contacts" }) },
             { id: "newsletters", label: tx("Newsletters"), icon: News01Icon, count: 0, current: view.kind === "newsletters", onClick: () => show({ kind: "newsletters" }) },
-            { id: "purchases", label: tx("Purchases"), icon: ShoppingBag01Icon, count: 0, current: view.kind === "later" && view.which === "purchases", onClick: () => show({ kind: "later", which: "purchases" }) },
+            { id: "purchases", label: tx("Purchases"), icon: ShoppingBag01Icon, count: 0, current: (view.kind === "later" && view.which === "purchases") || view.kind === "subscriptions", onClick: () => show({ kind: "later", which: "purchases" }) },
             ...(laterCounts.screener > 0
               ? [{ id: "screener", label: tx("New senders"), icon: UserAdd01Icon, count: laterCounts.screener, current: view.kind === "screener", onClick: () => show({ kind: "screener" }) }]
               : []),
@@ -3395,7 +3399,19 @@ function Mail({
           ]}
         />
         <div className="main-panel">
-        {view.kind === "newsletters" ? (
+        {view.kind === "subscriptions" ? (
+          <Subscriptions
+            accounts={accounts}
+            searchRef={searchInput}
+            onNotice={setNotice}
+            onPhoneNav={() => setPhoneNav(true)}
+            onReceipts={() => show({ kind: "later", which: "purchases" })}
+            onEmails={(sub) => {
+              const inbox = allFolders.find((f) => f.role === "inbox" && f.account_id === sub.account_id) ?? allFolders.find((f) => f.role === "inbox");
+              if (inbox) show({ kind: "from", folderId: inbox.id, address: sub.addresses[0], title: sub.name, screened: false, with: { account: sub.account_id, addresses: sub.addresses }, back: { kind: "subscriptions" } });
+            }}
+          />
+        ) : view.kind === "newsletters" ? (
           <Newsletters
             accounts={accounts}
             signInNeeded={needsSignIn}
@@ -3490,7 +3506,16 @@ function Mail({
           />
         ) : (
           <ThreadList
-            top={fullLayout ? aboveList(false) : searchTop}
+            top={
+              <>
+                {fullLayout ? aboveList(false) : searchTop}
+                {view.kind === "later" && view.which === "purchases" && (
+                  <div className="purchase-tabs">
+                    <PurchaseTabs on="receipts" onSubscriptions={() => show({ kind: "subscriptions" })} />
+                  </div>
+                )}
+              </>
+            }
             search={
               <>
                 {fullLayout && searchBox}

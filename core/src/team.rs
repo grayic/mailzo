@@ -803,7 +803,15 @@ impl Engine {
                 }
                 // Someone's own inbox is only taken into the team when the list has exactly
                 // its servers and password, so a teammate can't redirect it or take it over.
-                Some(a) if !a.prefs.team_shared && !self.same_connection(a, entry)? => continue,
+                // A browser sign-in's token too: its date says nothing about who wrote it.
+                Some(a)
+                    if !a.prefs.team_shared
+                        && !(self.same_connection(a, entry)?
+                            && self.secrets.get(&account_secret(a.id))?.as_deref()
+                                == Some(entry.secret.as_str())) =>
+                {
+                    continue
+                }
                 Some(a) => {
                     // Already connected here by this person. It's the same inbox.
                     if a.sync_id != *id {
@@ -1758,6 +1766,51 @@ mod tests {
         let neither = BTreeMap::from([(7, Some(empty()))]);
         engine.apply_team_vault(3, &empty(), &neither).unwrap();
         assert_eq!(team_of(&engine, &a), None);
+    }
+
+    #[test]
+    fn a_teammate_cant_take_over_someones_own_browser_sign_in() {
+        let (engine, _, _) = two_teams();
+        let mut mine = engine
+            .store
+            .insert_account(
+                "me@shop.test",
+                "me@shop.test",
+                "imap.gmail.com",
+                993,
+                Security::Tls,
+                "me@shop.test",
+            )
+            .unwrap();
+        mine.auth = "google".into();
+        mine.smtp_host = "smtp.gmail.com".into();
+        mine.smtp_port = 465;
+        mine.settings_updated_at = 100;
+        engine.store.save_account(&mine).unwrap();
+        engine
+            .secrets
+            .set(&account_secret(mine.id), "my-refresh")
+            .unwrap();
+
+        // Everything about a Google inbox but its token is known to anyone, and an older date
+        // is easy to give. Only the same token shows it's the same person's sign-in.
+        let mut theirs = engine.team_inbox_entry(&mine).unwrap();
+        theirs.secret = "their-refresh".into();
+        theirs.updated_at = 1;
+        let mut list = empty();
+        list.inboxes.insert("their-copy".into(), theirs);
+        engine.apply_team_vault(3, &list, &BTreeMap::new()).unwrap();
+
+        let after = engine.store.account(mine.id).unwrap();
+        assert!(!after.prefs.team_shared, "still only theirs to remove");
+        assert_eq!(
+            engine
+                .secrets
+                .get(&account_secret(mine.id))
+                .unwrap()
+                .unwrap(),
+            "my-refresh"
+        );
     }
 
     #[test]

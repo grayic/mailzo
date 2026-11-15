@@ -805,8 +805,14 @@ impl Engine {
         Ok(value)
     }
 
-    /// Words for a reply, in plain text for the person to check and change.
-    pub(crate) async fn ai_write_reply(&self, message_id: i64, instruction: &str) -> Result<Value> {
+    /// Words for a reply, in plain text for the person to check and change. With `live`, its
+    /// words go to the screen that asked as they're written.
+    pub(crate) async fn ai_write_reply(
+        &self,
+        message_id: i64,
+        instruction: &str,
+        live: Option<&str>,
+    ) -> Result<Value> {
         let key = self.ai_key_for("ai_replies")?;
         let parent = self.store.message_detail(message_id)?;
         let mail = self.readable_thread(parent.account_id, &parent.thread_id)?;
@@ -868,11 +874,29 @@ impl Engine {
             },
             Self::as_material(&mail),
         );
+        // Only the new words each time, read from the answer so far. A draft that's checked
+        // may be rewritten, so with best drafts on it shows once it's settled.
+        let best = self.setting("ai_best_drafts")? == "on";
+        let shown = std::sync::atomic::AtomicUsize::new(0);
+        let show = |raw: &str| {
+            let (Some(id), Some(tell)) = (live, &self.writing_listener) else {
+                return;
+            };
+            let Some(so_far) = crate::ai::text_so_far(raw, "reply") else {
+                return;
+            };
+            let from = shown.load(std::sync::atomic::Ordering::Relaxed);
+            if let Some(piece) = so_far.get(from..).filter(|p| !p.is_empty()) {
+                shown.store(so_far.len(), std::sync::atomic::Ordering::Relaxed);
+                tell(id, piece);
+            }
+        };
+        let live: Option<crate::ai::Live> = (live.is_some() && !best).then_some(&show);
         let answer = self
-            .ask_writer(&key, &system, &question, schema.clone())
+            .ask_writer_live(&key, &system, &question, schema.clone(), live)
             .await?;
         let reply = reply_of(&answer)?;
-        if self.setting("ai_best_drafts")? != "on" {
+        if !best {
             return Ok(json!({ "reply": reply }));
         }
         // Best quality: one quick check, and at most one rewrite.

@@ -2,7 +2,8 @@
 //! checks the key, keeps what it was sent, and gives the reply it was told to.
 
 use axum::extract::State;
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::{header, HeaderMap, StatusCode};
+use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde_json::{json, Value};
@@ -47,19 +48,21 @@ async fn messages(
     State(inner): State<Arc<Inner>>,
     headers: HeaderMap,
     Json(body): Json<Value>,
-) -> (StatusCode, Json<Value>) {
+) -> Response {
     inner.requests.lock().unwrap().push(body.clone());
     if let Some((status, message)) = inner.fail_with.lock().unwrap().clone() {
         return (
             StatusCode::from_u16(status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
             Json(json!({ "type": "error", "error": { "message": message } })),
-        );
+        )
+            .into_response();
     }
     if headers.get("x-api-key").and_then(|k| k.to_str().ok()) != Some(GOOD_KEY) {
         return (
             StatusCode::UNAUTHORIZED,
             Json(json!({ "type": "error", "error": { "message": "invalid x-api-key" } })),
-        );
+        )
+            .into_response();
     }
     let question = body["messages"][0]["content"]
         .as_str()
@@ -74,19 +77,40 @@ async fn messages(
         .map(|(_, answer)| answer.clone())
         .unwrap_or_else(blank_answer);
     let (input, output, cache_read) = *inner.usage.lock().unwrap();
+    let usage = json!({
+        "input_tokens": input,
+        "output_tokens": output,
+        "cache_read_input_tokens": cache_read,
+        "cache_creation_input_tokens": 0,
+    });
+    let text = answer.to_string();
+    if body["stream"] == true {
+        // Like the real service: the answer a few letters at a time, as it's written.
+        let letters: Vec<char> = text.chars().collect();
+        let events = std::iter::once(json!({ "type": "message_start", "message": { "usage": usage } }))
+            .chain(letters.chunks(7).map(|piece| {
+                let piece: String = piece.iter().collect();
+                json!({ "type": "content_block_delta", "index": 0, "delta": { "type": "text_delta", "text": piece } })
+            }))
+            .chain(std::iter::once(json!({
+                "type": "message_delta",
+                "delta": { "stop_reason": "end_turn" },
+                "usage": { "output_tokens": output },
+            })));
+        let stream: String = events
+            .map(|e| format!("event: {}\ndata: {e}\n\n", e["type"].as_str().unwrap_or("")))
+            .collect();
+        return ([(header::CONTENT_TYPE, "text/event-stream")], stream).into_response();
+    }
     (
         StatusCode::OK,
         Json(json!({
             "stop_reason": "end_turn",
-            "content": [{ "type": "text", "text": answer.to_string() }],
-            "usage": {
-                "input_tokens": input,
-                "output_tokens": output,
-                "cache_read_input_tokens": cache_read,
-                "cache_creation_input_tokens": 0,
-            },
+            "content": [{ "type": "text", "text": text }],
+            "usage": usage,
         })),
     )
+        .into_response()
 }
 
 fn has_good_bearer(headers: &HeaderMap) -> bool {

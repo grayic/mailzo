@@ -137,6 +137,9 @@ pub struct RuleMail {
     pub has_body: bool,
     /// Which email this is, wherever it's since been moved to.
     pub key: String,
+    pub size: u32,
+    /// How many times its body failed to come down. After a few, it's no longer fetched.
+    pub body_tries: i64,
 }
 
 /// These words on their own, so "Ana" isn't found in "Canada".
@@ -376,7 +379,7 @@ pub(crate) fn rule_mail_sql(tail: &str) -> String {
         "SELECT m.id, m.account_id, m.folder_id, m.thread_id, m.from_name || ' ' || m.from_addr,
                 m.to_json || ' ' || m.cc_json, m.subject, COALESCE(b.text, m.snippet),
                 COALESCE(b.attachments_json, '[]') LIKE '%\"inline\":false%', m.date,
-                b.message_id IS NOT NULL, COALESCE(m.rfc_id, '#' || m.id)
+                b.message_id IS NOT NULL, COALESCE(m.rfc_id, '#' || m.id), m.size, m.body_tries
          FROM messages m JOIN folders f ON f.id = m.folder_id
          LEFT JOIN bodies b ON b.message_id = m.id
          WHERE {tail}"
@@ -413,6 +416,8 @@ impl Store {
                 date: r.get(9)?,
                 has_body: r.get(10)?,
                 key: r.get(11)?,
+                size: r.get(12)?,
+                body_tries: r.get(13)?,
             })
         })?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
@@ -443,6 +448,43 @@ impl Store {
 }
 
 impl Engine {
+    /// Whether a refresh will bring this email's body down by itself.
+    fn body_still_coming(&self, m: &RuleMail) -> bool {
+        m.size <= self.options.body_max_bytes && m.body_tries < 3
+    }
+
+    /// The filters that look at this inbox's new mail. A team's shared inbox has none.
+    fn rules_for(&self, account: &Account) -> Result<Vec<Rule>> {
+        if account.prefs.team_shared {
+            return Ok(vec![]);
+        }
+        Ok(self
+            .rules()?
+            .into_iter()
+            .filter(|r| r.enabled && r.inbox.as_ref().is_none_or(|i| *i == account.sync_id))
+            .collect())
+    }
+
+    /// Whether anything decides where this inbox's new mail goes before it shows: a filter,
+    /// or a sender it unsubscribed from, whose new mail goes to Archive.
+    pub(crate) fn has_filters(&self, account: &Account) -> bool {
+        self.rules_for(account).is_ok_and(|r| !r.is_empty())
+            || (!account.prefs.team_shared
+                && self
+                    .left_senders(&account.email)
+                    .is_ok_and(|left| !left.is_empty()))
+    }
+
+    /// Whether this inbox has a filter that reads what's inside new mail, so its bodies are
+    /// worth bringing down with the news rather than on the slower full look.
+    pub(crate) fn rules_read_bodies(&self, account: &Account) -> bool {
+        self.rules_for(account).is_ok_and(|rules| {
+            rules
+                .iter()
+                .any(|r| r.ai_words().is_some() || r.when.needs_body())
+        })
+    }
+
     pub(crate) fn rules(&self) -> Result<Vec<Rule>> {
         let mut out: Vec<Rule> = self
             .store
@@ -907,15 +949,7 @@ impl Engine {
         if waiting.is_empty() {
             return Ok(0);
         }
-        let rules: Vec<Rule> = if account.prefs.team_shared {
-            vec![]
-        } else {
-            self.rules()?
-                .into_iter()
-                .filter(|r| r.enabled)
-                .filter(|r| r.inbox.as_ref().is_none_or(|i| *i == account.sync_id))
-                .collect()
-        };
+        let rules = self.rules_for(account)?;
         // Senders this inbox unsubscribed from: anything new from them goes to Archive, so
         // one that ignores it never lands in the inbox again. A team decides that together.
         let left = if account.prefs.team_shared {
@@ -981,10 +1015,11 @@ impl Engine {
                 decided.push(i);
                 continue;
             }
-            // Rules about what's inside wait for it to arrive, which won't be long
-            // unless it's too big to come down by itself. Only the rules it could still
-            // match: everything else shows at once.
+            // Rules about what's inside wait for it to arrive, which won't be long. Mail too
+            // big to come down by itself, or whose body kept failing, never will: it's judged
+            // by what's here. Only the rules it could still match: everything else shows at once.
             let too_soon = !m.has_body
+                && self.body_still_coming(m)
                 && m.date >= now - BODY_WAIT_SECONDS
                 && rules.iter().any(|r| {
                     r.ai_words().is_none() && r.when.needs_body() && r.when.could_match(m)
@@ -1164,6 +1199,8 @@ mod tests {
             date: 0,
             has_body: true,
             key: "k".into(),
+            size: 1_000,
+            body_tries: 0,
         }
     }
 

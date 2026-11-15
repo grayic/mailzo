@@ -725,6 +725,9 @@ impl Engine {
             ));
         }
         let mut account = self.store.account(a.account_id)?;
+        if !host.is_empty() {
+            crate::signin::check_token_server(&account, &host)?;
+        }
         account.display_name = a.display_name.trim().to_string();
         account.signature = a.signature;
         account.smtp_host = host;

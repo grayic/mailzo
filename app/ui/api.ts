@@ -469,6 +469,48 @@ export interface Newsletter {
   left: { at: number; how: "done" | "sent" | "opened"; name: string } | null;
 }
 
+export type SubscriptionPeriod = "week" | "month" | "quarter" | "half_year" | "year";
+export type SubscriptionStatus = "active" | "failed" | "ending" | "cancelled" | "unsure" | "stopped";
+
+/** Something paid for again and again, worked out from receipts or added by hand. */
+export interface Subscription {
+  key: string;
+  name: string;
+  /** Null for one added by hand. */
+  account_id: number | null;
+  addresses: string[];
+  amount: number | null;
+  currency: string | null;
+  period: SubscriptionPeriod | null;
+  period_sure: boolean;
+  last_paid: number | null;
+  next: number | null;
+  /** From a renewal reminder or the person, not worked out from the last payment. */
+  next_sure: boolean;
+  status: SubscriptionStatus;
+  /** For one that's ending: the last day it's paid for. */
+  ends: number | null;
+  payments: number;
+  manual: boolean;
+  edited: boolean;
+}
+
+export interface SubscriptionEdit {
+  name?: string;
+  amount?: number;
+  currency?: string;
+  period?: SubscriptionPeriod;
+  next?: number;
+  status?: "active" | "cancelled";
+  hidden?: boolean;
+}
+
+export interface Subscriptions {
+  items: Subscription[];
+  /** Marked as not being subscriptions. */
+  hidden: Subscription[];
+}
+
 export interface AiPlan {
   id: string;
   name: string;
@@ -786,8 +828,20 @@ export const api = {
       language,
       saved_only,
     }),
-  aiWriteReply: (message_id: number, instruction: string) =>
-    call<{ reply: string }>("ai_write_reply", { message_id, instruction }),
+  /** With onPiece, each new piece of the reply is handed over as the AI writes it, where it can. */
+  aiWriteReply: async (message_id: number, instruction: string, onPiece?: (text: string) => void) => {
+    const live = onPiece && inMacApp ? crypto.randomUUID() : undefined;
+    const stop = live
+      ? await listen<{ id: string; text: string }>("ai-writing", (e) => {
+          if (e.payload.id === live) onPiece?.(e.payload.text);
+        })
+      : undefined;
+    try {
+      return await call<{ reply: string }>("ai_write_reply", { message_id, instruction, live });
+    } finally {
+      stop?.();
+    }
+  },
   /** Up to three short replies to this email, to pick with a tap. */
   aiShortReplies: (message_id: number) => call<{ replies: string[] }>("ai_short_replies", { message_id }),
   /** A few sentences on what needs them today. Saved only: just what's already made, or null. */
@@ -894,6 +948,13 @@ export const api = {
   unsubscribe: (message_id: number, quietly = false) =>
     call<{ kind: "done" | "sent" | "opened" | "open" | "page"; url?: string }>("unsubscribe", { message_id, quietly }),
   newsletters: () => call<Newsletter[]>("newsletters"),
+  subscriptions: () => call<Subscriptions>("subscriptions"),
+  /** Saves the person's changes to one; an empty change forgets them. */
+  subscriptionEdit: (key: string, edit: SubscriptionEdit) =>
+    call<Subscriptions>("subscription_edit", { key, edit }),
+  subscriptionAdd: (name: string, amount: number, currency: string, period: SubscriptionPeriod, next: number | null) =>
+    call<Subscriptions>("subscription_add", { name, amount, currency, period, next }),
+  subscriptionRemove: (key: string) => call<Subscriptions>("subscription_remove", { key }),
   /** Lets a sender back in after unsubscribing: their new mail stays in the inbox again. */
   newsletterForget: (account_id: number, address: string) =>
     call("newsletter_forget", { account_id, address }),
