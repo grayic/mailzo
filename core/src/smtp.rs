@@ -208,6 +208,26 @@ pub async fn send(
         .map_err(|e| explain(host, e))
 }
 
+/// Sends a message built earlier, exactly as it was built, to the people in `envelope`.
+#[allow(clippy::too_many_arguments)]
+pub async fn send_raw(
+    account: &Account,
+    password: &str,
+    host: &str,
+    port: u16,
+    security: SmtpSecurity,
+    envelope: &lettre::address::Envelope,
+    raw: &[u8],
+    reach: Reach,
+) -> Result<()> {
+    transport(account, password, host, port, security, reach)
+        .await?
+        .send_raw(envelope, raw)
+        .await
+        .map(|_| ())
+        .map_err(|e| explain(host, e))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

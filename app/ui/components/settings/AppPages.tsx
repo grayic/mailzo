@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { keys } from "../../keys";
 import { ApiError, api, canLock, native, proveItsMe, type MyTemplate } from "../../api";
 import { useSettings } from "../../settings";
 import type { Account, ThreadSummary } from "../../types";
@@ -266,6 +267,7 @@ export function AppearancePage() {
             { value: "system", label: tx("Follow the Mac") },
             { value: "light", label: tx("Light") },
             { value: "dark", label: tx("Dark") },
+            { value: "glass", label: tx("Glass") },
           ]}
         />
         <SettingChoice
@@ -396,7 +398,7 @@ export function WritingPage({
         <SettingChoice
           setting="reply_default"
           label={tx("The main Reply action")}
-          help={tx("Used by ⌘R and the quick reply box.")}
+          help={keys(tx("Used by ⌘R and the quick reply box."))}
           options={[
             { value: "reply", label: tx("Reply") },
             { value: "reply_all", label: tx("Reply all") },
@@ -798,28 +800,28 @@ const SHORTCUTS: [string, [string, string][]][] = [
   [
     "Writing",
     [
-      ["⌘N", tx("New message")],
-      ["⌘R", "Reply"],
-      ["⌘↩", "Send"],
+      [keys("⌘N"), tx("New message")],
+      [keys("⌘R"), "Reply"],
+      [keys("⌘↩"), "Send"],
       ["esc", tx("Close the message and keep it as a draft")],
     ],
   ],
   [
     tx("Moving around"),
     [
-      ["⌘K", tx("Do anything by typing it")],
-      ["⌘F", tx("Search all email")],
-      ["⌘1", tx("All Inbox")],
-      ["⌘2, ⌘3…", tx("Switch to each inbox")],
-      ["⌘,", "Settings"],
-      ["⌘\\", tx("Collapse or expand the sidebar")],
+      [keys("⌘K"), tx("Do anything by typing it")],
+      [keys("⌘F"), tx("Search all email")],
+      [keys("⌘1"), tx("All Inbox")],
+      [keys("⌘2, ⌘3…"), tx("Switch to each inbox")],
+      [keys("⌘,"), "Settings"],
+      [keys("⌘\\"), tx("Collapse or expand the sidebar")],
     ],
   ],
   [
     tx("Email list"),
     [
-      ["⌘A", tx("Select everything in the list")],
-      ["⌘ click", tx("Select one more")],
+      [keys("⌘A"), tx("Select everything in the list")],
+      [keys("⌘ click"), tx("Select one more")],
       ["⇧ click", tx("Select a range")],
       ["esc", tx("Clear the selection")],
       [tx("Delete"), tx("Move to the bin or archive, as chosen in General")],

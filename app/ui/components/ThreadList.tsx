@@ -1,4 +1,5 @@
 import { memo, ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { keys } from "../keys";
 import { copyText } from "../api";
 import { shortDate } from "../format";
 import {
@@ -773,7 +774,7 @@ export function ThreadList({
           <IconButton
             icon={CheckmarkSquare01Icon}
             label={picked.size === threads.length ? tx("Clear selection") : tx("Select all")}
-            shortcut="⌘A"
+            shortcut={keys("⌘A")}
             small
             className="list-refresh"
             onClick={onToggleAll}

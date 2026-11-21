@@ -1,5 +1,5 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { api, hearFromPanel, native } from "./api";
+import { api, hearFromPanel, native, onTheWeb } from "./api";
 import { setReadingSize } from "./prepareEmail";
 
 export type Settings = Record<string, string>;
@@ -17,8 +17,11 @@ export const useSettings = () => useContext(SettingsContext);
 
 function applyToPage(s: Settings) {
   const root = document.documentElement;
-  if (s.theme === "light" || s.theme === "dark") root.dataset.theme = s.theme;
+  // Glass is light mail on a see-through dark frame, so its colours are the light ones.
+  if (s.theme === "light" || s.theme === "dark" || s.theme === "glass") root.dataset.theme = s.theme === "glass" ? "light" : s.theme;
   else delete root.dataset.theme;
+  if (s.theme === "glass") root.dataset.glass = onTheWeb ? "web" : "mac";
+  else delete root.dataset.glass;
   root.dataset.density = s.density ?? "comfortable";
   root.dataset.preview = s.preview_lines ?? "1";
   root.dataset.reading = s.reading_size ?? "normal";

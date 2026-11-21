@@ -204,6 +204,15 @@ fn mailboxes(list: &[Addr]) -> Result<Vec<Mailbox>> {
         .collect()
 }
 
+/// A message ready to go, and the copy kept in Sent.
+pub(crate) struct Prepared {
+    pub account: Account,
+    pub password: String,
+    pub rfc_id: String,
+    pub message: lettre::Message,
+    pub copy: Vec<u8>,
+}
+
 impl Engine {
     fn draft_dir(&self, draft_id: i64) -> PathBuf {
         self.data_dir.join("drafts").join(draft_id.to_string())
@@ -767,7 +776,7 @@ impl Engine {
     }
 
     /// The outgoing server, finding and remembering it the first time.
-    async fn smtp_settings(
+    pub(crate) async fn smtp_settings(
         &self,
         account: &Account,
         password: &str,
@@ -802,6 +811,59 @@ impl Engine {
         result
     }
 
+    /// The message as it will go out, and the copy for Sent, dated `date`. Checks first
+    /// that it may go: someone to send it to, and no encrypted words going out plainly.
+    pub(crate) async fn prepare_message(
+        &self,
+        draft: &Draft,
+        date: SystemTime,
+    ) -> Result<Prepared> {
+        if draft.from_encrypted && !draft.encrypt && !draft.plain_ok {
+            return Err(CoreError::Send {
+                code: "plain_reply_to_encrypted".into(),
+                message: "This quotes an encrypted email, so sending it unencrypted would let \
+                          anyone on the way read those words. Turn encryption back on, or \
+                          confirm that you want to send it unencrypted."
+                    .into(),
+            });
+        }
+        if draft.to.is_empty() && draft.cc.is_empty() && draft.bcc.is_empty() {
+            return Err(CoreError::Send {
+                code: "no_recipients".into(),
+                message: "Add at least one person to send this to.".into(),
+            });
+        }
+        let account = self.store.account(draft.account_id)?;
+        let password = self.password(account.id).await?;
+
+        let domain = account.email.rsplit('@').next().unwrap_or("localhost");
+        let rfc_id = format!("{}@{domain}", crate::crypto::random_hex(16));
+        let wrapped = format!("<{rfc_id}>");
+        // Built once, so the Sent copy is exactly what went, encrypted if it was.
+        let content = self.message_content(draft, &account)?;
+        let content = self.protect(draft, &account, content)?;
+        let prepared = |e: lettre::error::Error| CoreError::Send {
+            code: "bad_message".into(),
+            message: format!("This message couldn't be prepared: {e}"),
+        };
+        let message = self
+            .message_head(draft, &account, &wrapped, date, false)?
+            .multipart(content.clone())
+            .map_err(prepared)?;
+        let copy = self
+            .message_head(draft, &account, &wrapped, date, true)?
+            .multipart(content)
+            .map_err(prepared)?
+            .formatted();
+        Ok(Prepared {
+            account,
+            password,
+            rfc_id,
+            message,
+            copy,
+        })
+    }
+
     /// Clears away drafts that went but couldn't be cleared at the time, and their files.
     pub(crate) fn clear_sent_drafts(&self) {
         let Ok(left) = self.store.sent_drafts_left() else {
@@ -824,6 +886,13 @@ impl Engine {
     }
 
     async fn send_draft_inner(&self, id: i64, force: bool) -> Result<Value> {
+        // Handed to the always-on server, which alone sends it now.
+        if self.store.helper_job(id)?.is_some() {
+            return Err(CoreError::Send {
+                code: "already_sending".into(),
+                message: "Your always-on server is sending this.".into(),
+            });
+        }
         if self.store.draft_was_sent(id)? {
             return Err(CoreError::Send {
                 code: "already_sent".into(),
@@ -831,44 +900,13 @@ impl Engine {
             });
         }
         let draft = self.store.draft(id)?;
-        if draft.from_encrypted && !draft.encrypt && !draft.plain_ok {
-            return Err(CoreError::Send {
-                code: "plain_reply_to_encrypted".into(),
-                message: "This quotes an encrypted email, so sending it unencrypted would let \
-                          anyone on the way read those words. Turn encryption back on, or \
-                          confirm that you want to send it unencrypted."
-                    .into(),
-            });
-        }
-        if draft.to.is_empty() && draft.cc.is_empty() && draft.bcc.is_empty() {
-            return Err(CoreError::Send {
-                code: "no_recipients".into(),
-                message: "Add at least one person to send this to.".into(),
-            });
-        }
-        let account = self.store.account(draft.account_id)?;
-        let password = self.password(account.id).await?;
-
-        let domain = account.email.rsplit('@').next().unwrap_or("localhost");
-        let rfc_id = format!("{}@{domain}", crate::crypto::random_hex(16));
-        let wrapped = format!("<{rfc_id}>");
-        let date = SystemTime::now();
-        // Built once, so the Sent copy is exactly what went, encrypted if it was.
-        let content = self.message_content(&draft, &account)?;
-        let content = self.protect(&draft, &account, content)?;
-        let prepared = |e: lettre::error::Error| CoreError::Send {
-            code: "bad_message".into(),
-            message: format!("This message couldn't be prepared: {e}"),
-        };
-        let message = self
-            .message_head(&draft, &account, &wrapped, date, false)?
-            .multipart(content.clone())
-            .map_err(prepared)?;
-        let copy = self
-            .message_head(&draft, &account, &wrapped, date, true)?
-            .multipart(content)
-            .map_err(prepared)?
-            .formatted();
+        let Prepared {
+            account,
+            password,
+            rfc_id,
+            message,
+            copy,
+        } = self.prepare_message(&draft, SystemTime::now()).await?;
 
         let (host, port, security) = self.smtp_settings(&account, &password).await?;
         // The last word on whether a teammate got there first.
@@ -957,7 +995,7 @@ impl Engine {
 
     /// Many providers file sent mail themselves, so this checks first. Adding a
     /// second copy would show the message twice.
-    async fn save_sent_copy(
+    pub(crate) async fn save_sent_copy(
         &self,
         account: &Account,
         password: &str,
@@ -1002,7 +1040,7 @@ impl Engine {
         Ok(())
     }
 
-    async fn mark_answered(
+    pub(crate) async fn mark_answered(
         &self,
         account: &Account,
         password: &str,

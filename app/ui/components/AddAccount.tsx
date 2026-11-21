@@ -426,7 +426,7 @@ export function AddAccount({
               {tx("Cancel")}</button>
           )}
         </form>
-        {children && <div className="welcome-foot">{children}</div>}
+        {children && <div className="welcome-options">{children}</div>}
       </div>
     </div>
   );

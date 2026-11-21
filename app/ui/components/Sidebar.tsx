@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { keys } from "../keys";
 import type { IconSvgElement } from "@hugeicons/react";
 import {
   Add01Icon,
@@ -46,6 +47,10 @@ export const FOLDER_ICONS: Record<string, IconSvgElement> = {
 type Arrangement = Record<string, { order: string[]; hidden: string[] }>;
 const ARRANGEMENT_KEY = "sidebar-arrangement";
 const MORE_KEY = "sidebar-more";
+/** Whether the folders past the first few are showing. */
+const MORE_FOLDERS_KEY = "sidebar-more-folders";
+/** How many of someone's own folders show before the rest go under More. */
+const FOLDERS_SHOWN = 5;
 
 const readArrangement = (): Arrangement => {
   try {
@@ -132,7 +137,7 @@ function AccountSwitcher({
                   <>
                     {unread > 0 && <span className="menu-count">{unread}</span>}
                     {selected?.id === a.id && <Icon icon={Tick02Icon} size="s" />}
-                    {i < 8 && <span className="menu-key">⌘{i + 2}</span>}
+                    {i < 8 && <span className="menu-key">{keys(`⌘${i + 2}`)}</span>}
                   </>
                 }
                 onClick={() => {
@@ -254,6 +259,22 @@ export function Sidebar({
       }
       return !now;
     });
+  const [moreFoldersOpen, setMoreFoldersOpen] = useState(() => {
+    try {
+      return localStorage.getItem(MORE_FOLDERS_KEY) === "open";
+    } catch {
+      return false;
+    }
+  });
+  const toggleMoreFolders = () =>
+    setMoreFoldersOpen((now) => {
+      try {
+        localStorage.setItem(MORE_FOLDERS_KEY, now ? "closed" : "open");
+      } catch {
+        // Kept for now, though not for next time.
+      }
+      return !now;
+    });
   /** With only icons showing, a name moves to a tooltip. */
   const named = (name: string) => (rail ? { "aria-label": name, "data-tip": name } : {});
 
@@ -286,7 +307,13 @@ export function Sidebar({
   const hiddenViews = views.filter((x) => hiddenIn("views").includes(x.id));
   const folderGroup = selected ? `folders:${selected.email}` : "";
   const folders = arranged(selected ? (foldersBy[selected.id] ?? []) : [], (f) => f.path, arrangement[folderGroup]?.order ?? []);
-  const shownFolders = folders.filter((f) => !hiddenIn(folderGroup).includes(f.path));
+  const visibleFolders = folders.filter((f) => !hiddenIn(folderGroup).includes(f.path));
+  // Inbox, Sent and the like always show, and the first few of their own folders; the rest
+  // wait under More. The one that's open always stays in sight.
+  const ownFolders = visibleFolders.filter((f) => f.role === "folder");
+  const overflow = ownFolders.length > FOLDERS_SHOWN ? ownFolders.slice(FOLDERS_SHOWN) : [];
+  const shownFolders = visibleFolders.filter((f) => !overflow.includes(f));
+  const moreFoldersShowing = moreFoldersOpen || overflow.some((f) => f.id === currentFolderId);
   const hiddenFolders = folders.filter((f) => hiddenIn(folderGroup).includes(f.path));
   const viewDrag = useDragOrder(
     shownViews.map((x) => x.id),
@@ -321,7 +348,7 @@ export function Sidebar({
     );
   };
 
-  const folderRow = (f: Folder, hidden: boolean, i = 0) => {
+  const folderRow = (f: Folder, hidden: boolean, i = 0, still = hidden) => {
     const { moving, ...row } = folderDrag.row(f.path, i);
     return (
       <button
@@ -329,9 +356,9 @@ export function Sidebar({
         className={`nav-item ${moving ? "nav-item-moving" : ""} ${hidden ? "nav-item-hidden" : ""}`}
         aria-current={f.id === currentFolderId}
         {...named(f.role === "inbox" && f.unread > 0 ? tx("{name}, {n} unread", { name: folderLabel(f), n: f.unread }) : folderLabel(f))}
-        {...(hidden ? {} : row)}
+        {...(still ? {} : row)}
         onClick={() => {
-          if (folderDrag.clicked()) onPickFolder(f.id);
+          if (still || folderDrag.clicked()) onPickFolder(f.id);
         }}
         onContextMenu={(e) => openMenu(e, { group: folderGroup, id: f.path, hidden, folder: f })}
       >
@@ -341,7 +368,7 @@ export function Sidebar({
         {f.role === "drafts" && draftsFor(f.account_id) > 0 && (
           <span className="nav-count">{draftsFor(f.account_id)}</span>
         )}
-        {!hidden && <Icon icon={DragDropVerticalIcon} size="xs" className="nav-grip" />}
+        {!still && <Icon icon={DragDropVerticalIcon} size="xs" className="nav-grip" />}
       </button>
     );
   };
@@ -414,13 +441,13 @@ export function Sidebar({
           </span>
         )}
         <span className="nav-arrows">
-          <IconButton icon={ArrowLeft01Icon} label={tx("Back")} shortcut="⌘[" small disabled={!onBack} onClick={onBack} />
-          <IconButton icon={ArrowRight01Icon} label={tx("Forward")} shortcut="⌘]" small disabled={!onForward} onClick={onForward} />
+          <IconButton icon={ArrowLeft01Icon} label={tx("Back")} shortcut={keys("⌘[")} small disabled={!onBack} onClick={onBack} />
+          <IconButton icon={ArrowRight01Icon} label={tx("Forward")} shortcut={keys("⌘]")} small disabled={!onForward} onClick={onForward} />
         </span>
         <IconButton
           icon={SidebarLeftIcon}
           label={rail ? tx("Expand sidebar") : tx("Collapse sidebar")}
-          shortcut="⌘\"
+          shortcut={keys("⌘\\")}
           small
           className="sidebar-toggle"
           onClick={onToggleRail}
@@ -437,14 +464,14 @@ export function Sidebar({
         />
       </div>
 
-      <button className="btn btn-primary compose-btn" {...named(tx("New message"))} data-tip-key={rail ? "⌘N" : undefined} onClick={onCompose}>
+      <button className="btn btn-primary compose-btn" {...named(tx("New message"))} data-tip-key={rail ? keys("⌘N") : undefined} onClick={onCompose}>
         <Icon icon={PencilEdit02Icon} size="s" />
         <span>{tx("New message")}</span>
-        <span className="kbd">⌘N</span>
+        <span className="kbd">{keys("⌘N")}</span>
       </button>
 
       <div className="nav-scroll">
-        <button className="nav-item" aria-current={showingAll} data-tip={tx("Every account's inbox")} data-tip-key="⌘1" {...named(tx("All Inbox"))} onClick={onShowAll}>
+        <button className="nav-item" aria-current={showingAll} data-tip={tx("Every account's inbox")} data-tip-key={keys("⌘1")} {...named(tx("All Inbox"))} onClick={onShowAll}>
           <Icon icon={Mailbox01Icon} />
           <span className="truncate-1">{tx("All Inbox")}</span>
           <Count
@@ -458,20 +485,21 @@ export function Sidebar({
         </div>
         {moreViews.length > 0 && (
           <>
+            {moreShowing && (
+              <div className="nav-more-list">{moreViews.map((x) => viewRow(x, false, 0, true))}</div>
+            )}
+            {/* Below what it shows once open, so it reads as the way to fold them back. */}
             <button
               type="button"
               className="nav-item nav-more-toggle"
               aria-expanded={moreShowing}
-              {...named(tx("More"))}
+              {...named(moreShowing ? tx("Show less") : tx("Show more"))}
               onClick={toggleMore}
             >
               <Icon icon={MoreHorizontalIcon} />
-              <span className="truncate-1 grow">{tx("More")}</span>
+              <span className="truncate-1 grow">{moreShowing ? tx("Show less") : tx("Show more")}</span>
               <Icon icon={ArrowDown01Icon} size="xs" className="nav-hidden-arrow" />
             </button>
-            {moreShowing && (
-              <div className="nav-more-list">{moreViews.map((x) => viewRow(x, false, 0, true))}</div>
-            )}
           </>
         )}
         <div className="nav-label-row">
@@ -483,6 +511,25 @@ export function Sidebar({
         <div ref={folderDrag.list} className={folderDrag.listClass}>
           {shownFolders.map((f, i) => folderRow(f, false, i))}
         </div>
+        {overflow.length > 0 && (
+          <>
+            {moreFoldersShowing && (
+              <div className="nav-more-list">{overflow.map((f) => folderRow(f, false, 0, true))}</div>
+            )}
+            <button
+              type="button"
+              className="nav-item nav-more-toggle"
+              aria-expanded={moreFoldersShowing}
+              {...named(moreFoldersShowing ? tx("Show less") : tx("{n} more folders", { n: overflow.length }))}
+              onClick={toggleMoreFolders}
+            >
+              <Icon icon={MoreHorizontalIcon} />
+              <span className="truncate-1 grow">{moreFoldersShowing ? tx("Show less") : tx("Show more")}</span>
+              {!moreFoldersShowing && <span className="nav-count">{overflow.length}</span>}
+              <Icon icon={ArrowDown01Icon} size="xs" className="nav-hidden-arrow" />
+            </button>
+          </>
+        )}
         {/* A few providers have no Drafts folder, and drafts must still be findable. */}
         {selected &&
           draftsFor(selected.id) > 0 &&
@@ -550,7 +597,7 @@ export function Sidebar({
           >
             <Icon icon={Settings02Icon} />
             <span className="truncate-1">{tx("Settings")}</span>
-            {!rail && <span className="nav-key">⌘,</span>}
+            {!rail && <span className="nav-key">{keys("⌘,")}</span>}
           </button>
           <button
             type="button"

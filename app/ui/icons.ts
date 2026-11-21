@@ -20,6 +20,7 @@ export {
   UserGroupIcon,
   Copy01Icon,
   Delete02Icon,
+  DollarCircleIcon,
   DeleteThrowIcon,
   Doc01Icon,
   Download04Icon,
@@ -120,4 +121,6 @@ export {
   Notification01Icon,
   PaintBoardIcon,
   Wrench01Icon,
+  CloudIcon,
+  CloudServerIcon,
 } from "@hugeicons/core-free-icons";

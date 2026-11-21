@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError, api, onBeforeRestart, pgpApi, type MyTemplate, type TeamTemplate } from "../api";
+import { keys } from "../keys";
 import { PickTime, WhenItems } from "./Later";
 import { useSettings } from "../settings";
 import { readAsDataUrl } from "../files";
@@ -915,7 +916,7 @@ export function Composer({
             className="btn btn-primary"
             disabled={sending || scheduling || attaching > 0}
             data-tip={onSendDone ? tx("Send. Add ⇧ to archive and open the next one") : tx("Send")}
-            data-tip-key="⌘↩"
+            data-tip-key={keys("⌘↩")}
             onClick={() => void send()}
           >
             {sending ? <Spinner /> : <Icon icon={SentIcon} size="s" />}

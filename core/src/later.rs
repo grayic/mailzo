@@ -441,6 +441,7 @@ impl Store {
         let db = self.db();
         let mut st = db.prepare(
             "SELECT id FROM drafts WHERE send_at IS NOT NULL AND send_at <= ?1 AND sent_at IS NULL
+               AND helper_job IS NULL
              ORDER BY send_at",
         )?;
         let rows = st.query_map([now], |r| r.get(0))?;
@@ -623,6 +624,16 @@ impl Engine {
                     changed = true;
                 }
             }
+        }
+        // On an always-on server: the scheduled messages devices handed to it.
+        let handed = self.helper_sends_due(now).await;
+        if handed > 0 {
+            sent += handed;
+            changed = true;
+        }
+        // On a device paired with one: the two brought into step, now and then.
+        if let Ok(v) = self.helper_tick(false).await {
+            changed |= v["changed"].as_bool().unwrap_or(false);
         }
         // Follow-ups: stopped by a reply, otherwise sent when due.
         match self.sequences_tick(now).await {

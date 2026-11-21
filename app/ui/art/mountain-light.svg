@@ -1,0 +1,32 @@
+<svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="l-sky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#9db4ec"/><stop offset=".42" stop-color="#d9dcf4"/>
+        <stop offset=".62" stop-color="#f4dcdf"/><stop offset=".8" stop-color="#f6c0b2"/><stop offset="1" stop-color="#f1ad9f"/>
+      </linearGradient>
+      <linearGradient id="l-lit" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbe6ec"/><stop offset="1" stop-color="#e9c3d3"/></linearGradient>
+      <linearGradient id="l-shade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c9cfe6"/><stop offset="1" stop-color="#9ea7c9"/></linearGradient>
+      <linearGradient id="l-rock" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6f7699"/><stop offset="1" stop-color="#4b5174"/></linearGradient>
+      <linearGradient id="l-r1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a6088"/><stop offset="1" stop-color="#3d4266"/></linearGradient>
+      <linearGradient id="l-r2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#454b72"/><stop offset="1" stop-color="#2c3052"/></linearGradient>
+      <linearGradient id="l-r3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#363b5f"/><stop offset="1" stop-color="#22253f"/></linearGradient>
+      <linearGradient id="l-haze" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3c8c2" stop-opacity="0"/><stop offset="1" stop-color="#f3c8c2" stop-opacity=".55"/></linearGradient>
+    </defs>
+    <rect width="1440" height="900" fill="url(#l-sky)"/>
+    <!-- far range -->
+    <g transform="translate(0 285) scale(1 0.82)">
+    <path d="M0 640 L120 590 L210 612 L330 560 L430 600 L560 575 L700 610 L860 570 L980 600 L1120 556 L1260 596 L1440 560 L1440 900 L0 900Z" fill="#b5b6d6" opacity=".7"/>
+    <!-- the peak: rock body, then shade and lit snow faces -->
+    <path d="M300 760 L520 520 L640 430 L705 368 L722 352 L760 384 L860 470 L1010 560 L1160 640 L1240 700 L1240 900 L300 900Z" fill="url(#l-rock)"/>
+    <path d="M722 352 L705 368 L640 430 L560 500 L600 506 L540 590 L640 548 L610 640 L700 560 L735 470 Z" fill="url(#l-shade)"/>
+    <path d="M722 352 L760 384 L860 470 L1010 560 L1110 615 L1020 612 L1060 650 L930 610 L880 640 L840 560 L760 520 L735 470 Z" fill="url(#l-lit)"/>
+    <path d="M722 352 L735 470 L760 520 L790 470 Z" fill="#f7d7e0"/>
+    <path d="M640 548 L700 560 L735 470 L700 600 Z" fill="#8f97bb" opacity=".6"/>
+    <path d="M840 560 L880 640 L930 610 L900 690 Z" fill="#7d84a8" opacity=".55"/>
+    <rect y="560" width="1440" height="200" fill="url(#l-haze)"/>
+    <!-- foreground ridges -->
+    <path d="M0 720 L140 680 L260 710 L380 660 L520 720 L660 690 L780 740 L940 700 L1080 740 L1220 690 L1340 720 L1440 700 L1440 900 L0 900Z" fill="url(#l-r1)"/>
+    <path d="M0 790 L180 750 L320 785 L470 745 L640 800 L820 760 L990 805 L1150 765 L1300 795 L1440 770 L1440 900 L0 900Z" fill="url(#l-r2)"/>
+    <path d="M0 860 L200 820 L420 855 L640 825 L880 865 L1100 830 L1300 860 L1440 840 L1440 900 L0 900Z" fill="url(#l-r3)"/>
+    </g>
+  </svg>

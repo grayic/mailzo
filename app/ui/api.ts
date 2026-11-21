@@ -152,7 +152,24 @@ type PanelNews =
 
 /** Copies text through macOS, which works from any window and any click; in a browser, the page's own way. */
 export async function copyText(text: string): Promise<void> {
-  if (!inMacApp) return navigator.clipboard.writeText(text);
+  if (!inMacApp) {
+    try {
+      return await navigator.clipboard.writeText(text);
+    } catch {
+      // Some browsers and embedded views refuse the clipboard; the older way still works there.
+      const box = document.createElement("textarea");
+      box.value = text;
+      box.setAttribute("readonly", "");
+      box.style.position = "fixed";
+      box.style.opacity = "0";
+      document.body.appendChild(box);
+      box.select();
+      const ok = document.execCommand("copy");
+      box.remove();
+      if (!ok) throw new Error(tx("Couldn't copy that."));
+      return;
+    }
+  }
   if (!(await invoke<boolean>("copy_text", { text }))) throw new Error("Couldn't copy that.");
 }
 
@@ -484,6 +501,8 @@ export interface Subscription {
   period: SubscriptionPeriod | null;
   period_sure: boolean;
   last_paid: number | null;
+  /** The first payment found, so past months' totals know when it began. */
+  first_paid: number | null;
   next: number | null;
   /** From a renewal reminder or the person, not worked out from the last payment. */
   next_sure: boolean;
@@ -493,6 +512,8 @@ export interface Subscription {
   payments: number;
   manual: boolean;
   edited: boolean;
+  /** The conversations its own emails are in, newest first. */
+  threads: string[];
 }
 
 export interface SubscriptionEdit {
@@ -654,6 +675,47 @@ export interface AiAppsStatus {
   last_used: string | null;
 }
 
+/** The always-on server this device is paired with, if any. */
+export interface HelperStatus {
+  connected: boolean;
+  kind: "cloud" | "own" | null;
+  name: string | null;
+  url: string | null;
+  synced_at: number | null;
+  problem: string | null;
+  scheduled_on_server: number;
+  pending: { numbers: string; name: string } | null;
+}
+
+/** On the web: a pairing code for a device, and where it's got to. */
+export interface PairStatus {
+  stage: "none" | "waiting" | "connecting" | "confirm" | "done" | "refused";
+  code?: string;
+  expires_at?: number;
+  numbers?: string;
+  device_name?: string;
+}
+
+export interface PairedDevice {
+  device_id: string;
+  name: string;
+  kind: "cloud" | "own";
+  paired_at: number;
+  last_seen: number | null;
+}
+
+/** The server's own pages for pairing devices, only on the web. */
+async function web<T>(path: string, body?: object): Promise<T> {
+  const res = await fetch(path, {
+    method: body ? "POST" : "GET",
+    headers: { "content-type": "application/json", "x-dakly": "1" },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(data.code ?? "unknown", data.message ?? tx("Something went wrong."));
+  return data as T;
+}
+
 export const api = {
   /** Typed text looks in `account` alone when it's given. Filters carry their own. */
   /** `most`: conversations at most, for a list scrolled past the first 300. */
@@ -770,6 +832,21 @@ export const api = {
   threadFollowUp: (account_id: number, thread_id: string, at: number | null) =>
     call("thread_follow_up", { account_id, thread_id, at }),
   scheduleDraft: (id: number, send_at: number) => call("schedule_draft", { id, send_at }),
+  helperStatus: () => call<HelperStatus>("helper_status"),
+  helperCloudOn: () => call<HelperStatus>("helper_cloud_on"),
+  helperPairStart: (url: string, code: string) =>
+    call<{ numbers: string; name: string }>("helper_pair_start", { url, code }),
+  helperPairConfirm: () => call("helper_pair_confirm"),
+  helperPairWait: () => call<{ state: "waiting" | "approved" | "refused" }>("helper_pair_wait"),
+  helperPairCancel: () => call("helper_pair_cancel"),
+  helperDisconnect: (anyway: boolean) =>
+    call<{ disconnected: boolean; unsure?: number }>("helper_disconnect", { anyway }),
+  helperSyncNow: () => call("helper_sync_now"),
+  pairNew: () => web<{ code: string; expires_at: number }>("/api/pair/new", {}),
+  pairStatus: () => web<PairStatus>("/api/pair/status"),
+  pairApprove: (yes: boolean) => web("/api/pair/approve", { yes }),
+  pairDevices: () => web<{ devices: PairedDevice[] }>("/api/pair/devices"),
+  pairRemove: (device_id: string) => web("/api/pair/remove", { device_id }),
   unscheduleDraft: (id: number) => call<Draft>("unschedule_draft", { id }),
   draftRemind: (id: number, days: number | null) => call<Draft>("draft_remind", { id, days }),
   draftFromMessage: (message_id: number) => call<Draft>("draft_from_message", { message_id }),
@@ -950,6 +1027,9 @@ export const api = {
   newsletters: () => call<Newsletter[]>("newsletters"),
   subscriptions: () => call<Subscriptions>("subscriptions"),
   /** Saves the person's changes to one; an empty change forgets them. */
+  /** One subscription's own emails, not everything from the company that sends them. */
+  subscriptionMail: (account_id: number, threads: string[]) =>
+    call<ThreadSummary[]>("subscription_mail", { account_id, threads }),
   subscriptionEdit: (key: string, edit: SubscriptionEdit) =>
     call<Subscriptions>("subscription_edit", { key, edit }),
   subscriptionAdd: (name: string, amount: number, currency: string, period: SubscriptionPeriod, next: number | null) =>

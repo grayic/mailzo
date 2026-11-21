@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { ApiError, pgpApi, type PgpKey, type PgpStatus } from "../../api";
+import { ApiError, copyText, onTheWeb, pgpApi, type PgpKey, type PgpStatus } from "../../api";
 import { Copy01Icon, SquareLock02Icon } from "../../icons";
 import type { Account } from "../../types";
 import { Confirm, Dialog, Icon, Problem, Spinner } from "../ui";
@@ -13,7 +13,7 @@ const spaced = (fingerprint: string) => fingerprint.replace(/(.{4})/g, "$1 ").tr
 
 async function copy(text: string): Promise<boolean> {
   try {
-    await navigator.clipboard.writeText(text);
+    await copyText(text);
     return true;
   } catch {
     return false;
@@ -53,7 +53,11 @@ export function EncryptionSection({ account }: { account: Account }) {
   return (
     <Section
       title={tx("Encrypted email")}
-      note={tx("With a key, people can send you email only you can read. It stays in this Mac's Keychain, and only the public half is shared.")}
+      note={
+        onTheWeb
+          ? tx("With a key, people can send you email only you can read. It's kept locked on your server, and only the public half is shared. A key made here isn't on your Mac: to read encrypted email in both, import the same key in each.")
+          : tx("With a key, people can send you email only you can read. It stays in this Mac's Keychain, and only the public half is shared.")
+      }
     >
       {!status && !problem && (
         <div className="group-row muted">

@@ -1,4 +1,5 @@
 import type { IconSvgElement } from "@hugeicons/react";
+import { keys } from "../keys";
 import { Fragment, useEffect, useMemo, useState, useRef } from "react";
 import { TeamBar, TeamNotes, useTeamThread, whoIsReplying, type TeamThreadRef } from "./Team";
 import { ApiError, api, calendarApi, onTheWeb, type Explained, type Invite } from "../api";
@@ -806,12 +807,23 @@ export const forgetTrustedSenders = () => {
 /** Longer conversations fold the emails between the first and the ones to read. */
 const FOLD_FROM = 4;
 
+/** A reply just sent from this conversation, before its sent copy is in. */
+export interface SendingReply {
+  id: number;
+  to: string;
+  text: string;
+  /** Left of the undo time, or null once it's going. */
+  secondsLeft: number | null;
+  onUndo?: () => void;
+}
+
 export function Reader({
   onBackToAnswer,
   onAskAbout,
   code,
   onCopyCode,
   messages,
+  sending,
   loading,
   folder,
   folders,
@@ -880,6 +892,9 @@ export function Reader({
   onTags?: () => void;
   tags?: ThreadTag[];
   messages: Message[] | null;
+  /** Replies to this conversation that were just sent, shown at once while they wait out
+   *  their undo time and go, until the sent copy takes their place. */
+  sending?: SendingReply[];
   loading: boolean;
   folder: Folder | null;
   folders: Folder[];
@@ -1026,9 +1041,9 @@ export function Reader({
         <div className="empty-title">{tx("Pick a conversation to read it")}</div>
         <div className="empty-keys">
           <span>
-            <span className="kbd">⌘N</span>{tx("New message")}</span>
+            <span className="kbd">{keys("⌘N")}</span>{tx("New message")}</span>
           <span>
-            <span className="kbd">⌘R</span>{tx("Reply")}</span>
+            <span className="kbd">{keys("⌘R")}</span>{tx("Reply")}</span>
         </div>
       </div>
     );
@@ -1322,7 +1337,7 @@ export function Reader({
           )}
         </Menu>
         <span className="spacer" />
-        <IconButton icon={MailReply01Icon} label={tx("Reply")} shortcut="⌘R" onClick={() => onCompose("reply", last)} />
+        <IconButton icon={MailReply01Icon} label={tx("Reply")} shortcut={keys("⌘R")} onClick={() => onCompose("reply", last)} />
         <IconButton icon={MailReplyAll01Icon} label={tx("Reply all")} onClick={() => onCompose("reply_all", last)} />
         <IconButton icon={ArrowTurnForwardIcon} label={tx("Forward")} onClick={() => onCompose("forward", last)} />
       </div>
@@ -1588,6 +1603,28 @@ export function Reader({
           </div>
           );
         })}
+        {sending?.map((r) => (
+          <div key={`sending-${r.id}`} className="card-slot">
+            <div className="card sending-card" role="status">
+              <div className="sending-head">
+                <span className="sending-to truncate-1">
+                  {r.to ? tx("To {name}", { name: r.to }) : tx("Your reply")}
+                </span>
+                <span className="sending-state">
+                  {r.secondsLeft !== null && r.secondsLeft > 0
+                    ? tx("Sending in {seconds}s", { seconds: r.secondsLeft })
+                    : tx("Sending…")}
+                </span>
+                {r.onUndo && r.secondsLeft !== null && r.secondsLeft > 0 && (
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={r.onUndo}>
+                    {tx("Undo")}
+                  </button>
+                )}
+              </div>
+              {r.text && <div className="sending-text">{r.text}</div>}
+            </div>
+          </div>
+        ))}
         {team && teamView && <TeamNotes thread={team.thread} view={teamView} onChanged={teamChanged} />}
         {whoIsReplying(teamView) && (
           <div role="status" className="team-replying">
@@ -1609,7 +1646,7 @@ export function Reader({
           >
             {replyStarting ? <Spinner size="s" /> : <Icon icon={MailReply01Icon} size="s" />}
             {replyMode === "reply_all" ? tx("Reply all") : "Reply"}
-            <span className="kbd">⌘R</span>
+            <span className="kbd">{keys("⌘R")}</span>
           </button>
         </div>
       )}

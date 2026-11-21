@@ -318,6 +318,8 @@ enum Kind {
 #[derive(Debug, Clone)]
 pub(crate) struct Mail {
     pub account_id: i64,
+    /// The conversation it's in, so a subscription can show only its own emails.
+    pub thread_id: String,
     pub from_name: String,
     pub from_addr: String,
     pub subject: String,
@@ -424,6 +426,8 @@ pub struct Subscription {
     /// Said in an email or by the person, rather than guessed from the gaps between payments.
     pub period_sure: bool,
     pub last_paid: Option<i64>,
+    /// The first payment found, so past months' totals know when it began.
+    pub first_paid: Option<i64>,
     /// When it's due next. Left out once it has stopped.
     pub next: Option<i64>,
     /// From a renewal reminder or the person, rather than worked out from the last payment.
@@ -437,6 +441,9 @@ pub struct Subscription {
     pub manual: bool,
     /// The person changed something about it.
     pub edited: bool,
+    /// The conversations its emails are in, newest first: only this one's, even when the same
+    /// company sends the mail for several, as an app store does.
+    pub threads: Vec<String>,
 }
 
 /// What the person changed about one.
@@ -1133,8 +1140,13 @@ fn read(mail: &Mail) -> Option<Seen> {
         kind,
         date: mail.date,
         price: price_in(&everything),
-        period: range_in(&everything, mail.date)
-            .and_then(|(start, end)| period_of_days((end - start) / DAY))
+        // An app store's own "(Monthly)" beside the item says it best: the small print below
+        // speaks of monthly and yearly plans alike.
+        period: store_period(&mail.text)
+            .or_else(|| {
+                range_in(&everything, mail.date)
+                    .and_then(|(start, end)| period_of_days((end - start) / DAY))
+            })
             .or_else(|| period_in(&everything)),
         when,
         // A receipt for a whole period says it repeats as plainly as any word.
@@ -1158,6 +1170,23 @@ const STORE_PERIODS: &[&str] = &[
     "(7 days)",
 ];
 
+/// How often, from the first app-store mark in the text: "iCloud+ with 50 GB (Monthly)".
+fn store_period(text: &str) -> Option<Period> {
+    let lower = text.to_ascii_lowercase();
+    let (_, mark) = STORE_PERIODS
+        .iter()
+        .filter_map(|p| lower.find(p).map(|at| (at, *p)))
+        .min()?;
+    match mark {
+        "(monthly)" | "(1 month)" => Some(Period::Month),
+        "(yearly)" | "(annual)" | "(annually)" | "(1 year)" => Some(Period::Year),
+        "(weekly)" | "(7 days)" => Some(Period::Week),
+        "(3 months)" => Some(Period::Quarter),
+        "(6 months)" => Some(Period::HalfYear),
+        _ => None,
+    }
+}
+
 /// One app-store receipt can be for several subscriptions, each with its own price and renewal
 /// date, so each becomes its own email here, named after what it's for. Other mail stays as it is.
 fn store_items(mail: &Mail) -> Vec<(Mail, Option<String>)> {
@@ -1168,7 +1197,10 @@ fn store_items(mail: &Mail) -> Vec<(Mail, Option<String>)> {
         .unwrap_or_default()
         .to_lowercase();
     let store = matches!(company_domain(&host).as_str(), "apple.com" | "google.com");
-    let lower = mail.text.to_lowercase();
+    // ASCII-only lowercasing keeps every byte where it was, so the places found in it are places
+    // in the text too. Full lowercasing can change the length ("İ" grows), and cutting the text
+    // at those places would land mid-letter or past the end and crash.
+    let lower = mail.text.to_ascii_lowercase();
     let marks: Vec<(usize, usize)> = if store {
         STORE_PERIODS
             .iter()
@@ -1218,6 +1250,7 @@ pub(crate) fn work_out(mail: &[Mail], now: i64) -> Vec<Subscription> {
         account_id: i64,
         addresses: Vec<String>,
         seen: Vec<Seen>,
+        threads: Vec<(i64, String)>,
     }
     let mut groups: BTreeMap<String, Group> = BTreeMap::new();
     let items: Vec<(Mail, Option<String>)> = mail.iter().flat_map(store_items).collect();
@@ -1244,7 +1277,9 @@ pub(crate) fn work_out(mail: &[Mail], now: i64) -> Vec<Subscription> {
             account_id: m.account_id,
             addresses: Vec::new(),
             seen: Vec::new(),
+            threads: Vec::new(),
         });
+        g.threads.push((m.date, m.thread_id.clone()));
         *g.name_votes.entry(name).or_default() += 1;
         let address = m.from_addr.to_lowercase();
         if !g.addresses.contains(&address) {
@@ -1372,6 +1407,7 @@ pub(crate) fn work_out(mail: &[Mail], now: i64) -> Vec<Subscription> {
             period,
             period_sure: regular.is_some() || said_period.is_some(),
             last_paid,
+            first_paid: paid.first().map(|s| s.date),
             next,
             next_sure: reminded.is_some(),
             status,
@@ -1379,6 +1415,15 @@ pub(crate) fn work_out(mail: &[Mail], now: i64) -> Vec<Subscription> {
             payments: paid.len(),
             manual: false,
             edited: false,
+            threads: {
+                g.threads.sort_by_key(|a| std::cmp::Reverse(a.0));
+                let mut once = HashSet::new();
+                g.threads
+                    .into_iter()
+                    .filter(|(_, t)| once.insert(t.clone()))
+                    .map(|(_, t)| t)
+                    .collect()
+            },
         });
     }
     out
@@ -1453,6 +1498,7 @@ fn from_manual(m: &Manual, now: i64) -> Subscription {
         period: Some(m.period),
         period_sure: true,
         last_paid: None,
+        first_paid: None,
         next,
         next_sure: next.is_some(),
         status: Status::Active,
@@ -1460,6 +1506,7 @@ fn from_manual(m: &Manual, now: i64) -> Subscription {
         payments: 0,
         manual: true,
         edited: false,
+        threads: Vec::new(),
     }
 }
 
@@ -1503,6 +1550,7 @@ impl Store {
             id: i64,
             key: String,
             account_id: i64,
+            thread_id: String,
             from_name: String,
             from_addr: String,
             subject: String,
@@ -1515,7 +1563,8 @@ impl Store {
             let mut st = db.prepare(
                 "SELECT m.id, COALESCE(m.rfc_id, '#' || m.id), m.account_id, m.from_name,
                         m.from_addr, m.subject, m.date, m.snippet,
-                        m.unsubscribe IS NOT NULL OR m.category IN ('promotions', 'newsletters')
+                        m.unsubscribe IS NOT NULL OR m.category IN ('promotions', 'newsletters'),
+                        m.thread_id
                  FROM messages m
                  JOIN folders f ON f.id = m.folder_id
                  WHERE m.date > ?1 AND m.is_draft = 0
@@ -1540,6 +1589,7 @@ impl Store {
                     date: r.get(6)?,
                     snippet: r.get(7)?,
                     marketing: r.get(8)?,
+                    thread_id: r.get(9)?,
                 })
             })?;
             let mut once = HashSet::new();
@@ -1550,9 +1600,17 @@ impl Store {
         };
         // Each email's words, from what was worked out before or from its body now.
         let cache = read_cache();
+        // Each mailbox's own: on a server one cache holds every person's, and a copied
+        // Message-ID, sender, date and subject mustn't reach someone else's words.
+        let whose = {
+            let db = self.reading_db();
+            db.path()
+                .map(str::to_string)
+                .unwrap_or_else(|| format!("{:p}", self))
+        };
         let known = |h: &Head| {
             format!(
-                "{}\u{1f}{}\u{1f}{}\u{1f}{}",
+                "{whose}\u{1f}{}\u{1f}{}\u{1f}{}\u{1f}{}",
                 h.key, h.from_addr, h.date, h.subject
             )
         };
@@ -1610,6 +1668,7 @@ impl Store {
             };
             out.push(Mail {
                 account_id: h.account_id,
+                thread_id: h.thread_id,
                 from_name: h.from_name,
                 from_addr: h.from_addr,
                 subject: h.subject,
@@ -1782,6 +1841,7 @@ mod tests {
             .map_or(("", from), |(n, a)| (n.trim(), a.trim_end_matches('>')));
         Mail {
             account_id: 1,
+            thread_id: format!("{subject}|{date}"),
             from_name: name.to_string(),
             from_addr: addr.to_string(),
             subject: subject.to_string(),
@@ -1904,6 +1964,20 @@ mod tests {
     }
 
     #[test]
+    fn a_store_receipt_with_letters_that_grow_when_lowercased_does_not_crash() {
+        let m = mail(
+            "App Store <no_reply@email.apple.com>",
+            "Your receipt from Apple",
+            "İİİİİİİİİİ\nAha Pass (Monthly) $10.59 İİ\nPhoto Pro (Yearly) $20",
+            at(2026, 10, 5),
+        );
+        let parts = store_items(&m);
+        assert_eq!(parts.len(), 2);
+        assert_eq!(parts[0].1.as_deref(), Some("Aha Pass"));
+        assert_eq!(parts[1].1.as_deref(), Some("Photo Pro"));
+    }
+
+    #[test]
     fn monthly_receipts_become_one_subscription_with_its_next_date() {
         let figma = "Figma <billing@figma.com>";
         let receipts: Vec<Mail> = (7..=10)
@@ -1926,6 +2000,12 @@ mod tests {
         assert_eq!(s.status, Status::Active);
         assert_eq!(s.next, Some(at(2026, 11, 5)));
         assert_eq!(s.payments, 4);
+        assert_eq!(
+            s.first_paid,
+            Some(at(2026, 7, 5)),
+            "past months know when it began"
+        );
+        assert_eq!(s.last_paid, Some(at(2026, 10, 5)));
     }
 
     #[test]
@@ -2075,8 +2155,40 @@ mod tests {
             ]
         );
         let x = subs.iter().find(|s| s.name == "X Premium").unwrap();
+        // Only its own emails, not every one the store sent.
+        assert_eq!(x.threads.len(), 1);
+        assert!(x.threads[0].starts_with("Your receipt from Apple.|"));
+        assert_eq!(
+            x.threads[0],
+            format!("Your receipt from Apple.|{}", at(2026, 11, 3))
+        );
         assert!(x.next_sure);
         assert_eq!(x.next.map(|n| n / DAY), Some(at(2026, 12, 3) / DAY));
+    }
+
+    #[test]
+    fn a_monthly_store_plan_stays_monthly_whatever_the_small_print_says() {
+        let apple = "Apple <no_reply@email.apple.com>";
+        let receipt = |date: i64, renews: &str| {
+            mail(
+                apple,
+                "Your receipt from Apple.",
+                &format!(
+                    "Receipt\niCloud\niCloud+ with 50 GB (Monthly)\nRenews {renews}\n$0.99\nSubtotal\n$0.99\n\
+                     You may contact Apple for a full refund within 15 days of a monthly subscription \
+                     upgrade or within 45 days after a yearly payment."
+                ),
+                date,
+            )
+        };
+        let mails = [
+            receipt(at(2026, 9, 24), "October 24, 2026"),
+            receipt(at(2026, 10, 25), "November 24, 2026"),
+        ];
+        let subs = work_out(&mails, NOW);
+        let icloud = subs.iter().find(|s| s.name.starts_with("iCloud+")).unwrap();
+        assert_eq!(icloud.period, Some(Period::Month));
+        assert_eq!(icloud.amount, Some(0.99));
     }
 
     #[test]

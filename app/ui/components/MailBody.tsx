@@ -123,7 +123,8 @@ function useDarkApp(theme: string | undefined): boolean {
     list.addEventListener("change", changed);
     return () => list.removeEventListener("change", changed);
   }, []);
-  return theme === "dark" || (theme !== "light" && systemDark);
+  // Glass reads mail on a white page, so its emails stay light whatever the system is.
+  return theme === "dark" || (theme !== "light" && theme !== "glass" && systemDark);
 }
 
 /** Where web addresses sit in plain text. A full stop, comma or closing bracket right after

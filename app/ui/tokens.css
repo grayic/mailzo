@@ -10,7 +10,20 @@
 
   /* Colour: surfaces */
   --canvas: #ffffff;
-  --sidebar: #e9eaee;
+  --sidebar: #f3f4f7;
+  /* Glass: the dark see-through frame, and the white New message button on it. */
+  --glass-frame: rgb(8 8 10 / 72%);
+  --glass-frame-ink: #e4e4e9;
+  --glass-frame-web: #111113;
+  --glass-button: #ffffff;
+  --glass-button-hover: #f2f2f4;
+  --glass-button-ink: #111113;
+  --glass-button-key: #ececf0;
+  --glass-button-key-ink: #55555c;
+  --glass-button-shadow: 0 1px 2px rgb(0 0 0 / 24%);
+  /* Set by the app: how far down the white starts, under the list's header. */
+  --glass-top: 0px;
+  --share: 1; /* Set on each part of the subscriptions split bar. */
   --raised: #ffffff;
   --sunken: #f1f2f5;
   /* Behind the email, so the email itself can sit on top as a card. */
@@ -27,16 +40,17 @@
   --event-chip-a: 14%;
   --event-chip-strong-a: 24%;
   --event-card-a: 8%;
-  --line: rgb(24 24 27 / 8%);
-  --line-strong: rgb(24 24 27 / 15%);
+  --line: rgb(24 24 27 / 10%);
+  --line-strong: rgb(24 24 27 / 18%);
   --scrim: rgb(20 20 24 / 32%);
   --mail-paper: #ffffff;
 
   /* Colour: text */
-  --ink: #17171a;
-  --ink-2: #4f4f57;
-  --ink-3: #7c7c85;
-  --ink-4: #a6a6ae;
+  --ink: #111114;
+  --ink-2: #393940;
+  --ink-3: #5c5c65;
+  --ink-4: #8c8c95;
+  --ink-read: var(--ink); /* names and subjects of mail already read */
   --on-fill: #ffffff;
 
   /* Colour: accent and meaning */
@@ -55,6 +69,10 @@
   /* Something new and still being finished, such as a "Beta" tag: soft yellow. */
   --new-soft: #fcefc2;
   --new-text: #7a5800;
+  --soon-soft: #fff1dc;
+  --soon-text: #a4520a;
+  --split-2: #a259ff;
+  --success-soft: rgb(26 138 86 / 10%);
   /* Behind a new version being ready: a faint green. */
   --update-wash: rgb(26 138 86 / 12%);
   --brand-1: #4f79f5;
@@ -99,6 +117,9 @@
   --tag-dot-l: 50%;
 
   --welcome-glow: radial-gradient(1000px 520px at 50% -12%, var(--accent-soft), transparent 70%);
+  /* Behind the welcome screens (connect an inbox, sign in, unlock): a mountain at dawn. */
+  --welcome-art: url("./art/mountain-light.svg");
+  --welcome-card: rgb(255 255 255 / 80%);
 
   /* The fonts people can choose for writing, matching what's sent. */
   --mail-font-system: var(--font-ui);
@@ -219,6 +240,7 @@
   --w-settings-nav: 232px;
   --w-settings-page: 620px;
   --w-choice: 220px;
+  --w-date-pop: 288px;
   --w-toggle: 34px;
   --h-toggle: 20px;
   --h-signature: 150px;
@@ -327,6 +349,8 @@
 /* The two blocks below must match. check-design.mjs fails if they don't. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
+    --welcome-art: url("./art/mountain-dark.svg");
+    --welcome-card: rgb(24 26 40 / 74%);
     --canvas: #18181b;
     --reader-bg: #18181b;
     --shadow-panel: 0 0 0 1px var(--line), var(--shadow-2);
@@ -353,6 +377,7 @@
     --ink-2: #b8b8c0;
     --ink-3: #8c8c95;
     --ink-4: #62626b;
+    --ink-read: #a8a8b0;
 
     --accent: #6d8dff;
     --accent-hover: #83a0ff;
@@ -367,6 +392,10 @@
     --star: #f2c144;
     --new-soft: rgba(242, 193, 68, 0.16);
     --new-text: #f2c96a;
+    --soon-soft: rgb(255 159 67 / 14%);
+    --soon-text: #ffb366;
+    --split-2: #b98cff;
+    --success-soft: rgb(95 207 154 / 14%);
     --update-wash: rgb(95 207 154 / 18%);
     --tooltip-bg: #3a3a41;
 
@@ -395,7 +424,38 @@
   }
 }
 
+/* Light: the sidebar keeps its softer greys, so the mail beside it leads. */
+:root[data-theme="light"]:not([data-glass]) .sidebar {
+  --ink-2: #4f4f57;
+  --ink-3: #7c7c85;
+  --ink-4: #a6a6ae;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) .sidebar {
+    --ink-2: #4f4f57;
+    --ink-3: #7c7c85;
+    --ink-4: #a6a6ae;
+  }
+}
+
+:root[data-glass] {
+  /* Glass mail is crisper than Light: darker words and a white reading page. */
+  --ink: #0f0f12;
+  --ink-2: #33333a;
+  --ink-3: #55555e;
+  --ink-4: #86868f;
+  --reader-bg: #ffffff;
+}
+
+/* Glass: the frame around the mail is dark, so its parts take the dark colours. */
+:root[data-glass] .sidebar,
+:root[data-glass] .main-panel > * > .list-head,
+:root[data-glass] .main-panel > * > .list-search,
+:root[data-glass] .settings-nav,
 :root[data-theme="dark"] {
+  --welcome-art: url("./art/mountain-dark.svg");
+  --welcome-card: rgb(24 26 40 / 74%);
   --canvas: #18181b;
   --reader-bg: #18181b;
   --shadow-panel: 0 0 0 1px var(--line), var(--shadow-2);
@@ -422,6 +482,7 @@
   --ink-2: #b8b8c0;
   --ink-3: #8c8c95;
   --ink-4: #62626b;
+  --ink-read: #a8a8b0;
 
   --accent: #6d8dff;
   --accent-hover: #83a0ff;
@@ -436,6 +497,10 @@
   --star: #f2c144;
   --new-soft: rgba(242, 193, 68, 0.16);
   --new-text: #f2c96a;
+  --soon-soft: rgb(255 159 67 / 14%);
+  --soon-text: #ffb366;
+  --split-2: #b98cff;
+  --success-soft: rgb(95 207 154 / 14%);
   --update-wash: rgb(95 207 154 / 18%);
   --tooltip-bg: #3a3a41;
 

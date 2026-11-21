@@ -253,7 +253,7 @@ pub struct ThreadSummary {
     pub follow_due: bool,
     /// When to remind, if there's still no reply.
     pub follow_at: Option<i64>,
-    /// In a search, what it's looking for is right there in the subject.
+    /// In a search, every word asked for is in its people or its subject.
     #[serde(default)]
     pub best_match: bool,
     /// The person's own tags on it.

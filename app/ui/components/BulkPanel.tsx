@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
+import { keys } from "../keys";
 import {
   Archive02Icon,
   CheckmarkCircle02Icon,
@@ -159,7 +160,7 @@ export function BulkPanel({
       <button className="link-btn bulk-clear" onClick={onClear}>
         {tx("Clear selection")}</button>
       <div className="fine bulk-hint">
-        {tx("⌘A selects all, and esc clears.")}
+        {keys(tx("⌘A selects all, and esc clears."))}
       </div>
       {confirming && (
         <Confirm

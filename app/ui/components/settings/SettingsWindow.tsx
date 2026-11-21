@@ -24,12 +24,13 @@ import {
   UserCircleIcon,
   Wrench01Icon,
   Clock01Icon,
+  CloudIcon,
 } from "../../icons";
-import { api, type AgentAction } from "../../api";
+import { api, onTheWeb, type AgentAction } from "../../api";
 import { useDragOrder } from "../../dragOrder";
 import { ActivityPage } from "./ActivityPage";
 import type { Account, Folder } from "../../types";
-import { Avatar, Icon, IconButton } from "../ui";
+import { Avatar, Icon, IconButton, LogoMark } from "../ui";
 import {
   AdvancedPage,
   AppearancePage,
@@ -42,6 +43,7 @@ import {
 } from "./AppPages";
 import { AccountPage } from "./AccountPage";
 import { AiPage } from "./AiPage";
+import { AlwaysOnPage } from "./AlwaysOnPage";
 import { FollowUpsPage } from "./FollowUpsPage";
 import { ConnectionsPage } from "./ConnectionsPage";
 import { HealthPage } from "./HealthPage";
@@ -87,6 +89,7 @@ const PAGE_GROUPS: [string, [string, string, IconSvgElement][]][] = [
     tx("Account"),
     [
       ["account", tx("Profile"), UserCircleIcon],
+      ["always_on", tx("Connect"), CloudIcon],
       ["team", tx("Team"), UserGroupIcon],
     ],
   ],
@@ -144,6 +147,7 @@ const SETTINGS_ON: Record<string, string[]> = {
   activity: [tx("Agent activity"), tx("What AI apps did"), tx("Clear activity")],
   mail: [tx("Keep whole emails from"), tx("Room used on this device"), tx("Mail on this device")],
   advanced: [tx("Clear saved mail on this device")],
+  always_on: [tx("Always on"), tx("Mailzo Cloud"), tx("Your own server"), tx("Connect my own server"), tx("Make a pairing code"), tx("Connected devices")],
   account: [tx("Main account email"), tx("Recovery key"), tx("Your devices"), tx("Sign out"), tx("Erase this device")],
   team: [tx("Invite someone"), tx("Invite code"), tx("Shared inboxes"), tx("Assign emails"), tx("Leave private notes"), tx("Team name")],
 };
@@ -317,7 +321,13 @@ export function SettingsWindow({
   return createPortal(
     <div role="dialog" aria-label={tx("Settings")} className="settings" data-phone-page={phonePage || undefined}>
       <nav aria-label={tx("Settings pages")} className="settings-nav">
-        <div className="sidebar-top settings-nav-top" data-tauri-drag-region>
+        <div className={`sidebar-top settings-nav-top ${onTheWeb ? "settings-nav-top-web" : ""}`} data-tauri-drag-region>
+          {onTheWeb && (
+            <span className="sidebar-brand">
+              <LogoMark />
+              <span className="sidebar-brand-name">{tx("Mailzo")}</span>
+            </span>
+          )}
           <IconButton icon={Cancel01Icon} label={tx("Close settings")} className="phone-only" onClick={onClose} />
         </div>
         <div className="settings-nav-head">
@@ -430,6 +440,7 @@ export function SettingsWindow({
               onAccountsChanged();
             }}
           />}
+        {page === "always_on" && <AlwaysOnPage signedIn={!!email} />}
         {page === "account" && <AccountPage email={email} onSignedOut={onSignedOut} onSetUpAccount={onSetUpAccount} />}
         {page === "advanced" && <AdvancedPage onCleared={onMailCleared} />}
         {inbox && (

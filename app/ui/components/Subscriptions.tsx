@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type RefObject } from "react";
+import { keys } from "../keys";
 import {
   ApiError,
   api,
@@ -11,8 +12,12 @@ import { language, tx } from "../i18n";
 import {
   Add01Icon,
   AlertCircleIcon,
+  ArrowRight01Icon,
+  Calendar03Icon,
   Delete02Icon,
+  DollarCircleIcon,
   Edit02Icon,
+  LinkSquare02Icon,
   Mail01Icon,
   Menu01Icon,
   MoreHorizontalIcon,
@@ -26,6 +31,7 @@ import {
 import type { Account } from "../types";
 import { AccountDot, Avatar, Dialog, Icon, IconButton, Menu, MenuItem, Problem, Spinner, accountHue } from "./ui";
 import { Choice } from "./settings/controls";
+import { DateField } from "./DateField";
 
 const DAY = 86_400;
 const say = (e: unknown) => (e instanceof ApiError ? e.message : String(e));
@@ -40,11 +46,11 @@ const PER_MONTH: Record<SubscriptionPeriod, number> = {
 };
 
 const PERIODS: { value: SubscriptionPeriod; label: string; every: string }[] = [
-  { value: "week", label: tx("Weekly"), every: tx("a week") },
-  { value: "month", label: tx("Monthly"), every: tx("a month") },
-  { value: "quarter", label: tx("Every 3 months"), every: tx("every 3 months") },
-  { value: "half_year", label: tx("Every 6 months"), every: tx("every 6 months") },
-  { value: "year", label: tx("Yearly"), every: tx("a year") },
+  { value: "week", label: tx("Weekly"), every: "/wk" },
+  { value: "month", label: tx("Monthly"), every: "/mo" },
+  { value: "quarter", label: tx("Every 3 months"), every: "/3 mo" },
+  { value: "half_year", label: tx("Every 6 months"), every: "/6 mo" },
+  { value: "year", label: tx("Yearly"), every: "/yr" },
 ];
 
 const CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD", "INR", "BDT", "PKR", "JPY", "SGD", "AED", "CHF", "BRL"];
@@ -61,6 +67,19 @@ export function money(amount: number, currency: string, whole = false): string {
   } catch {
     return `${currency} ${amount.toFixed(whole ? 0 : 2)}`;
   }
+}
+
+/** "$9", "$9.99": cents only when there are some, as prices are usually written. */
+function short(amount: number, currency: string): string {
+  return money(amount, currency, Math.round(amount * 100) % 100 === 0);
+}
+
+/** The company's own domain, not the one its mail is sent from: "apple.com", not
+ *  "email.apple.com". Two-part endings such as "co.uk" keep the name before them. */
+function mainDomain(host: string): string {
+  const parts = host.toLowerCase().split(".").filter(Boolean);
+  const twoPart = parts.length > 2 && parts[parts.length - 1].length === 2 && ["co", "com", "net", "org", "ac", "gov"].includes(parts[parts.length - 2]);
+  return parts.slice(twoPart ? -3 : -2).join(".");
 }
 
 /** What it costs a month, or null if its price isn't known. */
@@ -96,7 +115,7 @@ function dateText(unix: number): string {
 function priceText(s: Subscription): string {
   if (s.amount === null || !s.currency) return tx("Price not found");
   const every = PERIODS.find((p) => p.value === s.period)?.every;
-  return every ? `${money(s.amount, s.currency)} ${every}` : money(s.amount, s.currency);
+  return every ? `${short(s.amount, s.currency)}${every}` : short(s.amount, s.currency);
 }
 
 /** The line under its name: when it renews, or why it doesn't. */
@@ -215,24 +234,121 @@ function EditDialog({
             />
           </div>
         </div>
-        <div className="field">
-          <span className="field-label">{tx("How often")}</span>
-          <Choice
-            label={tx("How often")}
-            value={draft.period}
-            options={PERIODS.map((p) => ({ value: p.value, label: p.label }))}
-            onChange={(period) => set({ period: period as SubscriptionPeriod })}
-          />
+        <div className="subs-form-row subs-form-pair">
+          <div className="field">
+            <span className="field-label">{tx("How often")}</span>
+            <Choice
+              label={tx("How often")}
+              value={draft.period}
+              options={PERIODS.map((p) => ({ value: p.value, label: p.label }))}
+              onChange={(period) => set({ period: period as SubscriptionPeriod })}
+            />
+          </div>
+          <div className="field">
+            <span className="field-label">
+              {tx("Next payment")} <span className="field-optional">{tx("(optional)")}</span>
+            </span>
+            <DateField label={tx("Next payment")} value={draft.next} onChange={(next) => set({ next })} />
+          </div>
         </div>
-        <label className="field">
-          <span className="field-label">
-            {tx("Next payment")} <span className="field-optional">{tx("(optional)")}</span>
-          </span>
-          <input type="date" value={draft.next} onChange={(e) => set({ next: e.target.value })} />
-        </label>
       </div>
       <Problem text={problem} />
     </Dialog>
+  );
+}
+
+/** Looks up how to cancel it, in the browser: every service hides it somewhere different. */
+function openHowToCancel(name: string) {
+  const link = document.createElement("a");
+  link.href = `https://www.google.com/search?q=${encodeURIComponent(`how to cancel ${name} subscription`)}`;
+  link.target = "_blank";
+  link.rel = "noreferrer";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+/** What's known about one subscription, above its own emails, once it's opened. */
+export function SubscriptionDetails({ sub, accounts }: { sub: Subscription; accounts: Account[] }) {
+  const account = accounts.find((a) => a.id === sub.account_id);
+  const month = monthly(sub);
+  const host = sub.addresses[0]?.split("@")[1];
+  const from = host ? mainDomain(host) : undefined;
+  const facts: { label: string; value: string; sub?: string }[] = [
+    {
+      label: tx("Price"),
+      value: priceText(sub),
+      sub:
+        sub.period && sub.period !== "month" && month !== null && sub.currency
+          ? `${short(month, sub.currency)}/mo`
+          : undefined,
+    },
+    {
+      label: sub.status === "ending" ? tx("Paid until") : tx("Next payment"),
+      value:
+        sub.status === "ending" && sub.ends
+          ? dateText(sub.ends)
+          : sub.next
+            ? dateText(sub.next)
+            : "—",
+      sub: sub.next && sub.status !== "ending" ? (sub.next_sure ? whenText(sub.next) : tx("Worked out from past payments")) : undefined,
+    },
+    {
+      label: tx("Last paid"),
+      value: sub.last_paid ? dateText(sub.last_paid) : "—",
+      sub: sub.payments > 0 ? tx("{n} payments found", { n: sub.payments }) : undefined,
+    },
+    {
+      label: tx("Provider"),
+      value: sub.manual ? tx("Added by you") : (from ?? "—"),
+      sub: account ? account.prefs.label || account.email : undefined,
+    },
+  ];
+  return (
+    <div className="subs-detail">
+      <div className="subs-detail-head">
+        <Avatar name={sub.name} email={sub.addresses[0]} size="m" />
+        <span className={`subs-detail-status grow truncate-1 ${sub.status === "failed" ? "subs-when-bad" : ""}`}>
+          {sub.status === "failed" && <Icon icon={AlertCircleIcon} size="xs" />}
+          {statusText(sub)}
+        </span>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={() => openHowToCancel(sub.name)}>
+          <Icon icon={LinkSquare02Icon} size="s" />
+          {tx("How to cancel")}
+        </button>
+      </div>
+      <div className="subs-detail-facts">
+        {facts.map((f) => (
+          <div key={f.label} className="subs-fact">
+            <span className="subs-card-label">{f.label}</span>
+            <span className="subs-fact-value tnum truncate-1">{f.value}</span>
+            {f.sub && <span className="subs-card-sub">{f.sub}</span>}
+          </div>
+        ))}
+      </div>
+      {!sub.manual && <div className="day-label subs-detail-mail">{tx("Its emails")}</div>}
+    </div>
+  );
+}
+
+/** A summary card's top line: a small icon and what the number is. */
+function CardHead({
+  icon,
+  label,
+  children,
+}: {
+  icon: Parameters<typeof Icon>[0]["icon"];
+  label: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <span className="subs-card-head">
+      <span className="subs-card-icon">
+        <Icon icon={icon} size="s" />
+      </span>
+      <span className="subs-card-label">{label}</span>
+      {children}
+    </span>
   );
 }
 
@@ -258,8 +374,9 @@ function Row({
     <div className="subs-row" data-status={sub.status} data-opens={onEmails ? "" : undefined} onClick={onEmails}>
       <Avatar name={sub.name} email={sub.addresses[0]} size="m" />
       <div className="subs-main">
-        <span className="subs-name truncate-1">
-          {sub.name}
+        <span className="subs-name">
+          <span className="truncate-1">{sub.name}</span>
+          {soon && sub.next && <span className="subs-soon">{whenText(sub.next)}</span>}
           {account && accounts.length > 1 && <AccountDot email={account.email} hue={accountHue(account)} />}
         </span>
         <span className={`subs-when truncate-1 ${sub.status === "failed" ? "subs-when-bad" : ""}`}>
@@ -282,12 +399,11 @@ function Row({
           </div>
         )}
       </div>
-      {soon && sub.next && <span className="subs-soon">{whenText(sub.next)}</span>}
       <div className="subs-price">
         <span className="subs-amount tnum">{priceText(sub)}</span>
         {sub.period && sub.period !== "month" && month !== null && sub.currency && (
           <span className="subs-per tnum">
-            {tx("{amount} a month", { amount: money(month, sub.currency) })}
+            {`${short(month, sub.currency)}/mo`}
           </span>
         )}
       </div>
@@ -295,38 +411,61 @@ function Row({
         <Menu
           label={tx("More for {name}", { name: sub.name })}
           align="end"
-          trigger={(props) => <IconButton {...props} icon={MoreHorizontalIcon} label={tx("More")} small />}
-        >
-          {(close) => (
-            <>
-              <MenuItem icon={Edit02Icon} onClick={() => { close(); onEdit(); }}>
-                {tx("Edit")}
-              </MenuItem>
-              {onEmails && (
-                <MenuItem icon={Mail01Icon} onClick={() => { close(); onEmails(); }}>
-                  {tx("Show its emails")}
-                </MenuItem>
-              )}
-              {sub.status === "cancelled" || sub.status === "ending" || sub.status === "stopped" ? (
-                <MenuItem icon={RepeatIcon} onClick={() => { close(); onSet({ status: "active" }); }}>
-                  {tx("Still paying for it")}
-                </MenuItem>
-              ) : (
-                <MenuItem icon={Cancel01Icon} onClick={() => { close(); onSet({ status: "cancelled" }); }}>
-                  {tx("Mark as cancelled")}
-                </MenuItem>
-              )}
-              {sub.manual ? (
-                <MenuItem icon={Delete02Icon} danger onClick={() => { close(); onRemove(); }}>
-                  {tx("Remove")}
-                </MenuItem>
-              ) : (
-                <MenuItem icon={ViewOffSlashIcon} onClick={() => { close(); onSet({ hidden: true }); }}>
-                  {tx("Not a subscription")}
-                </MenuItem>
-              )}
-            </>
+          trigger={(props) => (
+            <button {...props} type="button" className="icon-btn icon-btn-sm" aria-label={tx("More")} data-tip={tx("More")}>
+              <Icon icon={MoreHorizontalIcon} size="s" />
+            </button>
           )}
+        >
+          {(close) => {
+            const done = sub.status === "cancelled" || sub.status === "ending" || sub.status === "stopped";
+            const run = (what: () => void) => () => {
+              close();
+              what();
+            };
+            return (
+              <>
+                <MenuItem icon={Edit02Icon} onClick={run(onEdit)}>
+                  {tx("Edit price or date")}
+                </MenuItem>
+                {onEmails && !sub.manual && (
+                  <MenuItem icon={Mail01Icon} onClick={run(onEmails)}>
+                    {tx("Show its emails")}
+                  </MenuItem>
+                )}
+                <div className="menu-sep" />
+                {sub.status === "failed" && (
+                  <MenuItem icon={Tick02Icon} onClick={run(() => onSet({ status: "active" }))}>
+                    {tx("Payment is sorted")}
+                  </MenuItem>
+                )}
+                {done ? (
+                  <MenuItem icon={RepeatIcon} onClick={run(() => onSet({ status: "active" }))}>
+                    {tx("Still paying for it")}
+                  </MenuItem>
+                ) : (
+                  <MenuItem icon={Cancel01Icon} onClick={run(() => onSet({ status: "cancelled" }))}>
+                    {tx("Already cancelled")}
+                  </MenuItem>
+                )}
+                {!done && (
+                  <MenuItem icon={LinkSquare02Icon} onClick={run(() => openHowToCancel(sub.name))}>
+                    {tx("How to cancel it")}
+                  </MenuItem>
+                )}
+                <div className="menu-sep" />
+                {sub.manual ? (
+                  <MenuItem icon={Delete02Icon} danger onClick={run(onRemove)}>
+                    {tx("Remove")}
+                  </MenuItem>
+                ) : (
+                  <MenuItem icon={ViewOffSlashIcon} onClick={run(() => onSet({ hidden: true }))}>
+                    {tx("Not a subscription")}
+                  </MenuItem>
+                )}
+              </>
+            );
+          }}
         </Menu>
       </div>
     </div>
@@ -377,6 +516,47 @@ function sorted(list: Subscription[], by: Sort): Subscription[] {
 }
 
 /** What it all adds up to, per currency, biggest first. */
+const PERIOD_DAYS: Record<SubscriptionPeriod, number> = { week: 7, month: 30, quarter: 91, half_year: 182, year: 365 };
+
+/** What was being paid each month for the last six, in one currency, worked out from when each
+ *  subscription's payments began and ended. The current month is the total shown on the card. */
+function monthHistory(items: Subscription[], currency: string, now: number): { start: number; total: number }[] {
+  const today = new Date(now * 1000);
+  const months: { start: number; total: number }[] = [];
+  for (let back = 5; back >= 0; back--) {
+    const start = new Date(today.getFullYear(), today.getMonth() - back, 1).getTime() / 1000;
+    const end = new Date(today.getFullYear(), today.getMonth() - back + 1, 1).getTime() / 1000;
+    let total = 0;
+    for (const s of items) {
+      const m = monthly(s);
+      if (m === null || s.currency !== currency) continue;
+      // The same ones the card counts: paying now, or a payment that failed.
+      if (back === 0) {
+        if (counts(s)) total += m;
+        continue;
+      }
+      // Past months count what was being paid then. One with no payment to date it (added by
+      // hand, or known only from a reminder) counts for every month, so it can't look new.
+      // One that's ending or unsure isn't counted now, so it isn't counted before either,
+      // or the tag would show a drop that's only it leaving the count.
+      if (s.status === "ending" || s.status === "unsure") continue;
+      const began = s.first_paid ?? s.last_paid ?? -Infinity;
+      const stopped = counts(s)
+        ? Infinity
+        : s.last_paid !== null
+          ? s.last_paid + PERIOD_DAYS[s.period ?? "month"] * DAY
+          : began;
+      if (began < end && stopped >= start) total += m;
+    }
+    months.push({ start, total });
+  }
+  return months;
+}
+
+function monthName(unix: number): string {
+  return new Date(unix * 1000).toLocaleDateString(language, { month: "short" });
+}
+
 function totals(items: Subscription[]): { currency: string; month: number; count: number }[] {
   const by = new Map<string, { month: number; count: number }>();
   for (const s of items) {
@@ -445,6 +625,20 @@ export function Subscriptions({
   const ending = items.filter((s) => s.status === "ending");
   const cancelled = items.filter((s) => s.status === "cancelled" || s.status === "stopped");
   const week = all.filter((s) => s.status === "active").filter((s) => s.next !== null && s.next - Date.now() / 1000 < 7 * DAY);
+  week.sort((a, b) => (a.next ?? 0) - (b.next ?? 0));
+  // The biggest costs in the main currency, for the split bar and the faces on the cards.
+  const paid = all.filter(counts).sort((a, b) => (monthly(b) ?? 0) - (monthly(a) ?? 0));
+  const split = main
+    ? paid
+        .filter((s) => s.currency === main.currency && (monthly(s) ?? 0) > 0)
+        .slice(0, 2)
+        .map((s) => ({ name: s.name, share: (monthly(s) ?? 0) / main.month }))
+    : [];
+  const rest = 1 - split.reduce((n, p) => n + p.share, 0);
+  const endingCount = all.filter((s) => s.status === "ending").length;
+  const history = useMemo(() => (main ? monthHistory(all, main.currency, Date.now() / 1000) : []), [all, main]);
+  const highest = Math.max(...history.map((h) => h.total), 0);
+  const sinceLast = history.length > 1 ? history[history.length - 1].total - history[history.length - 2].total : 0;
   const weekTotal = main ? week.filter((s) => s.currency === main.currency).reduce((n, s) => n + (s.amount ?? 0), 0) : 0;
 
   const row = (s: Subscription) => (
@@ -460,7 +654,7 @@ export function Subscriptions({
         });
       }}
       onRemove={() => void change(api.subscriptionRemove(s.key))}
-      onEmails={s.manual || s.addresses.length === 0 ? undefined : () => onEmails(s)}
+      onEmails={() => onEmails(s)}
     />
   );
 
@@ -503,7 +697,7 @@ export function Subscriptions({
             {query ? (
               <IconButton icon={Cancel01Icon} label={tx("Clear search")} small onClick={() => setQuery("")} />
             ) : (
-              <span className="kbd-quiet">⌘F</span>
+              <span className="kbd-quiet">{keys("⌘F")}</span>
             )}
           </div>
         </div>
@@ -549,35 +743,120 @@ export function Subscriptions({
         ) : (
           <>
             <div className="subs-cards">
-              <div className="subs-card">
-                <span className="subs-card-label">{tx("Per month")}</span>
-                <span className="subs-card-number tnum">{main ? money(main.month, main.currency) : "–"}</span>
-                {sums.length > 1 && (
-                  <span className="subs-card-sub tnum">
-                    + {sums.slice(1).map((t) => money(t.month, t.currency)).join(" + ")}
-                  </span>
+              <div className="subs-card subs-card-hero">
+                <CardHead icon={DollarCircleIcon} label={tx("Per month")}>
+                  {main && history.length > 1 && Math.abs(sinceLast) >= 1 && (
+                    <span className="subs-change tnum" data-down={sinceLast < 0 || undefined}>
+                      {sinceLast > 0 ? "▲" : "▼"}{" "}
+                      {tx("{amount} vs {month}", {
+                        amount: money(Math.abs(sinceLast), main.currency, true),
+                        month: monthName(history[history.length - 2].start),
+                      })}
+                    </span>
+                  )}
+                </CardHead>
+                <div className="subs-card-body">
+                  <span className="subs-card-number tnum">{main ? money(main.month, main.currency) : "–"}</span>
+                  {main && (
+                    <span className="subs-card-sub tnum">
+                      {sums.length > 1
+                        ? `+ ${sums.slice(1).map((t) => money(t.month, t.currency)).join(" + ")}`
+                        : tx("About {amount} a day", { amount: money((main.month * 12) / 365, main.currency) })}
+                    </span>
+                  )}
+                </div>
+                {main && highest > 0 && (
+                  <div className="subs-card-foot">
+                    <div className="subs-bars" role="img" aria-label={tx("Paid each month")}>
+                      {history.map((h, i) => (
+                        <span
+                          key={h.start}
+                          className="subs-bar"
+                          data-now={i === history.length - 1 || undefined}
+                          style={{ "--share": Math.max(h.total / highest, 0.06) } as React.CSSProperties}
+                          data-tip={`${monthName(h.start)} · ${money(h.total, main.currency)}`}
+                        />
+                      ))}
+                    </div>
+                    <div className="subs-bar-names" aria-hidden>
+                      {history.map((h) => (
+                        <span key={h.start}>{monthName(h.start)}</span>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
               <div className="subs-card">
-                <span className="subs-card-label">{tx("Per year")}</span>
-                <span className="subs-card-number tnum">{main ? money(main.month * 12, main.currency, true) : "–"}</span>
-                {sums.length > 1 && (
-                  <span className="subs-card-sub tnum">
-                    + {sums.slice(1).map((t) => money(t.month * 12, t.currency, true)).join(" + ")}
-                  </span>
+                <CardHead icon={Calendar03Icon} label={tx("Per year")} />
+                <div className="subs-card-body">
+                  <span className="subs-card-number tnum">{main ? money(main.month * 12, main.currency, true) : "–"}</span>
+                  {sums.length > 1 && (
+                    <span className="subs-card-sub tnum">
+                      + {sums.slice(1).map((t) => money(t.month * 12, t.currency, true)).join(" + ")}
+                    </span>
+                  )}
+                </div>
+                {split.length > 0 && (
+                  <div className="subs-card-foot">
+                    <div className="subs-split" aria-hidden>
+                      {split.map((p, i) => (
+                        <span key={p.name} data-part={i} style={{ "--share": p.share } as React.CSSProperties} />
+                      ))}
+                      {rest > 0.005 && <span data-part="rest" style={{ "--share": rest } as React.CSSProperties} />}
+                    </div>
+                    <div className="subs-split-keys">
+                      {split.map((p, i) => (
+                        <span key={p.name} data-part={i} className="truncate-1">
+                          {p.name}
+                        </span>
+                      ))}
+                      {rest > 0.005 && <span data-part="rest">{tx("Other")}</span>}
+                    </div>
+                  </div>
                 )}
               </div>
               <div className="subs-card">
-                <span className="subs-card-label">{tx("Paying for")}</span>
-                <span className="subs-card-number tnum">{all.filter(counts).length}</span>
-                <span className="subs-card-sub">{tx("subscriptions")}</span>
+                <CardHead icon={RepeatIcon} label={tx("Paying for")} />
+                <div className="subs-card-body">
+                  <span className="subs-card-number tnum">{paid.length}</span>
+                  <span className="subs-card-sub">
+                    {endingCount > 0
+                      ? tx("subscriptions · {count} ending", { count: endingCount })
+                      : tx("subscriptions")}
+                  </span>
+                </div>
+                {paid.length > 0 && (
+                  <div className="subs-card-foot subs-faces">
+                    <span className="subs-faces-stack">
+                      {paid.slice(0, 5).map((s) => (
+                        <Avatar key={s.key} name={s.name} email={s.addresses[0]} size="s" />
+                      ))}
+                    </span>
+                    {paid.length > 5 && (
+                      <span className="subs-card-sub">{tx("+{count} more", { count: paid.length - 5 })}</span>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="subs-card">
-                <span className="subs-card-label">{tx("Next 7 days")}</span>
-                <span className="subs-card-number tnum">{main && weekTotal > 0 ? money(weekTotal, main.currency) : week.length}</span>
-                <span className="subs-card-sub">
-                  {week.length === 0 ? tx("Nothing renews") : tx("{count} renewing", { count: week.length })}
-                </span>
+                <CardHead icon={ArrowRight01Icon} label={tx("Next 7 days")} />
+                <div className="subs-card-body">
+                  <span className="subs-card-number tnum">{main && weekTotal > 0 ? money(weekTotal, main.currency) : week.length}</span>
+                  <span className="subs-card-sub">
+                    {week.length === 0 ? tx("Nothing renews") : tx("{count} renewing", { count: week.length })}
+                  </span>
+                </div>
+                {week.length > 0 && (
+                  <div className="subs-card-foot subs-next">
+                    {week.slice(0, 2).map((s) => (
+                      <span key={s.key} className="subs-next-row">
+                        <Avatar name={s.name} email={s.addresses[0]} size="xs" />
+                        <span className="subs-next-name truncate-1">{s.name}</span>
+                        {s.next && <span className="subs-next-date tnum">{dateText(s.next)}</span>}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             {items.length === 0 && (

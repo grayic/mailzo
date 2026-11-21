@@ -45,6 +45,11 @@ const openMainWindow = () => void native("show_main_window", {});
 
 /** A conversation being read, once its emails have arrived. */
 type Reading = { thread: ThreadSummary; messages: Message[] | null; seen: boolean };
+/** Where a conversation opens: its first unread email, else its newest, as in the main window. */
+const firstToRead = (list: Message[]) => {
+  const unread = list.findIndex((m) => !m.seen);
+  return unread >= 0 ? unread : list.length - 1;
+};
 /** A message being written. `thread` is the conversation it replies to, if any. */
 type Writing = { draftId: number; thread: ThreadSummary | null; problem?: { text: string; code?: string } };
 /** A message waiting out its undo time. */
@@ -136,17 +141,19 @@ function Panel() {
         setWriting(null);
         return;
       }
-      // Every tab loads at once, so switching to one shows it straight away.
+      // Every tab loads at once, so switching to one shows it straight away. The mail shows
+      // as soon as it's here; the tabs' counts take longer, and follow.
       const ids = tabsShownRef.current ? TABS.map(([id]) => id) : ["all"];
-      const [list, lists, tabCounts] = await Promise.all([
+      const counting = tabsShownRef.current ? api.tabCounts(null, true).catch(() => null) : Promise.resolve({});
+      const [list, lists] = await Promise.all([
         api.listAccounts(),
         Promise.all(ids.map((id) => api.listAll("inbox", id === "all" ? undefined : id, 50, true))),
-        tabsShownRef.current ? api.tabCounts(null, true) : Promise.resolve({}),
       ]);
       byTab.current = Object.fromEntries(ids.map((id, i) => [id, lists[i]]));
       setAccounts(list);
-      setCounts(tabCounts);
       setThreads(tabList(tabsShownRef.current ? tabRef.current : "all"));
+      const tabCounts = await counting;
+      if (tabCounts) setCounts(tabCounts);
     } catch (e) {
       setProblem(say(e));
       setAccounts((now) => now ?? []);
@@ -198,8 +205,27 @@ function Panel() {
     const stopHearingLock = hearFromPanel("lock-changed", () => void load());
     // So it's already up to date when it opens, rather than catching up as it does.
     const stopHearingMail = hearFromPanel("unread-changed", loadSoon);
-    // New mail shows here as its banner does, not once the main window has caught up.
-    const stopHearingNew = hearFromPanel("new-mail", loadSoon);
+    // New mail shows here as its banner does, at once, put away or not. One look at a time,
+    // and one more after it for what came meanwhile, as every inbox can bring some at once
+    // as the app opens.
+    let looking = false;
+    let again = false;
+    const lookNow = async () => {
+      if (looking) {
+        again = true;
+        return;
+      }
+      looking = true;
+      try {
+        do {
+          again = false;
+          await load();
+        } while (again);
+      } finally {
+        looking = false;
+      }
+    };
+    const stopHearingNew = hearFromPanel("new-mail", () => void lookNow());
     return () => {
       if (later) clearTimeout(later);
       stopWatching();
@@ -444,6 +470,15 @@ function Panel() {
     };
   }, []);
 
+  const focusCard = useRef<HTMLDivElement | null>(null);
+  const shown = reading?.messages ?? null;
+  useEffect(() => {
+    if (!shown || firstToRead(shown) <= 0) return;
+    // After the cards are drawn, so it lands on the right place.
+    const frame = requestAnimationFrame(() => focusCard.current?.scrollIntoView({ block: "start" }));
+    return () => cancelAnimationFrame(frame);
+  }, [shown]);
+
   const hasWaiting = waiting.length > 0;
   useEffect(() => {
     if (!hasWaiting) return;
@@ -652,8 +687,8 @@ function Panel() {
             </div>
           ) : (
             messages.map((m, i) => (
+              <div key={m.id} ref={i === firstToRead(messages) ? focusCard : undefined} className="card-slot">
               <MessageCard
-                key={m.id}
                 message={m}
                 startOpen={i === messages.length - 1 || !m.seen}
                 showPicture
@@ -677,6 +712,7 @@ function Panel() {
                   stopReading();
                 }}
               />
+              </div>
             ))
           )}
         </div>

@@ -744,6 +744,36 @@ const MIGRATIONS: &[&str] = &[
           WHERE m.account_id = thread_marks.account_id AND m.thread_id = thread_marks.thread_id), 0)
       WHERE priority IS NOT NULL;
 "#,
+    // A scheduled message handed to the person's always-on server: from then on only that
+    // server sends it (`helper_job` names it there), so it never goes twice. And on that
+    // server, the messages it was handed, built in full by the device, with what happened.
+    r#"
+    ALTER TABLE drafts ADD COLUMN helper_job TEXT;
+    CREATE TABLE helper_sends (
+        job_id TEXT PRIMARY KEY,
+        inbox TEXT NOT NULL,
+        send_at INTEGER NOT NULL,
+        envelope_json TEXT NOT NULL,
+        raw BLOB,
+        copy BLOB,
+        rfc_id TEXT NOT NULL,
+        follow_thread TEXT,
+        remind_days INTEGER,
+        state TEXT NOT NULL DEFAULT 'waiting',
+        problem TEXT,
+        done_at INTEGER,
+        made_at INTEGER NOT NULL
+    );
+"#,
+    // Mail that came after the person said a conversation doesn't need them is looked at
+    // again, now that such a conversation counts as a real one rather than a sales chain.
+    r#"
+    UPDATE messages SET priority_done = 0
+      WHERE priority = 'good_to_know' AND priority_why IS NULL
+        AND EXISTS (SELECT 1 FROM thread_marks k
+                    WHERE k.account_id = messages.account_id AND k.thread_id = messages.thread_id
+                      AND k.priority = 'good_to_know' AND messages.date > COALESCE(k.priority_upto, 0));
+"#,
 ];
 
 const ACCOUNT_COLUMNS: &str =
@@ -5032,28 +5062,36 @@ fn save_facts(tx: &rusqlite::Transaction, message_id: i64, html: Option<&str>) -
     Ok(())
 }
 
+/// Puts first what has every word asked for in its people, then in its subject.
 fn mark_best_matches(list: &mut [ThreadSummary], f: &SearchFilters) {
-    let words: Vec<String> = f
-        .words
-        .iter()
-        .chain(&f.similar)
-        .map(|w| w.to_lowercase())
-        .collect();
-    if words.is_empty() {
-        return;
-    }
-    let is_best = |t: &ThreadSummary| {
-        let subject = t.subject.to_lowercase();
-        words.iter().any(|w| subject.contains(w.as_str()))
+    // With only other wordings, any one of them.
+    let asked: Vec<Vec<String>> = if f.words.is_empty() {
+        f.similar.iter().map(|w| vec![w.clone()]).collect()
+    } else {
+        vec![f.words.clone()]
     };
-    let best = list.iter().filter(|t| is_best(t)).count();
+    let has = |text: &str| {
+        asked
+            .iter()
+            .any(|w| crate::search::matches_exactly(w, text, "", ""))
+    };
+    let rank = |t: &ThreadSummary| {
+        if has(&format!("{} {}", t.participants.join(" "), t.lead_address)) {
+            0
+        } else if has(&t.subject) {
+            1
+        } else {
+            2
+        }
+    };
+    let best = list.iter().filter(|t| rank(t) < 2).count();
     if best == 0 || best == list.len() {
         return;
     }
+    list.sort_by_cached_key(rank);
     for t in list.iter_mut() {
-        t.best_match = is_best(t);
+        t.best_match = rank(t) < 2;
     }
-    list.sort_by_key(|t| !t.best_match);
 }
 
 /// Whether two emails with the same reply subject are between the same people: each wrote
@@ -6365,6 +6403,55 @@ mod tests {
     }
 
     #[test]
+    fn a_search_for_a_name_puts_that_persons_mail_first() {
+        let (s, a, f) = setup();
+        let mut theirs = msg(1, "a", &[]);
+        theirs.headers.subject = "Quick question".into();
+        theirs.headers.from = Some(crate::model::Addr {
+            name: "David Eichner".into(),
+            address: "de@studio.test".into(),
+        });
+        let mut newsletter = msg(2, "b", &[]);
+        newsletter.headers.subject = "Spaces by Travis Davids".into();
+        let mut other = msg(3, "c", &[]);
+        other.headers.subject = "Updates for everyone".into();
+        s.insert_messages(a, f, &[theirs, newsletter, other])
+            .unwrap();
+        let ids: Vec<i64> = {
+            let db = s.db();
+            let mut st = db.prepare("SELECT id FROM messages ORDER BY id").unwrap();
+            let rows = st.query_map([], |r| r.get(0)).unwrap();
+            rows.collect::<rusqlite::Result<_>>().unwrap()
+        };
+        let search = |text: &str| -> Vec<(String, bool)> {
+            let filters = crate::search::parse_plain(text);
+            let (list, _) = s.search_threads(&filters, &ids, 50, true).unwrap();
+            list.into_iter()
+                .map(|t| (t.subject, t.best_match))
+                .collect()
+        };
+        let row = |subject: &str, best| (subject.to_string(), best);
+        assert_eq!(
+            search("david"),
+            [
+                row("Quick question", true),
+                row("Spaces by Travis Davids", true),
+                row("Updates for everyone", false)
+            ],
+            "the person first, then the subject"
+        );
+        // Every word counts, so a lone "e" isn't a match on its own.
+        assert_eq!(
+            search("david e"),
+            [
+                row("Quick question", true),
+                row("Updates for everyone", false),
+                row("Spaces by Travis Davids", false)
+            ]
+        );
+    }
+
+    #[test]
     fn the_unread_filter_leaves_out_what_has_been_read() {
         let (s, a, f) = setup();
         let mut read = msg(1, "a", &[]);
@@ -6608,6 +6695,61 @@ mod tests {
         // The pinned one leads, and the one answered today comes next.
         let top = s.list_threads(inbox, 3, 0).unwrap();
         assert_eq!(top[0].thread_id, old_thread);
+    }
+
+    /// "Doesn't need me" covers the emails there were then. The next one that needs the
+    /// person brings the conversation back to Needs you.
+    #[test]
+    fn doesnt_need_me_covers_only_what_was_there() {
+        let (s, a, f) = setup();
+        let now = chrono::Utc::now().timestamp();
+        let mut first = msg(1, "n1", &[]);
+        first.internal_date = Some(now - 3600);
+        s.insert_messages(a, f, &[first]).unwrap();
+        filters_done(&s);
+        s.db()
+            .execute(
+                "UPDATE messages SET priority = 'needs_you', screened = 0",
+                [],
+            )
+            .unwrap();
+        assert_eq!(s.needs_you_count(f, false).unwrap(), 1);
+        let thread: String = s
+            .db()
+            .query_row(
+                "SELECT thread_id FROM messages WHERE rfc_id = 'n1'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        s.set_thread_priority(a, &thread, Some("good_to_know"))
+            .unwrap();
+        assert_eq!(s.needs_you_count(f, false).unwrap(), 0);
+        let mut next = msg(2, "n2", &["n1"]);
+        next.internal_date = Some(now - 60);
+        s.insert_messages(a, f, &[next]).unwrap();
+        filters_done(&s);
+        s.db()
+            .execute(
+                "UPDATE messages SET priority = 'needs_you', screened = 0 WHERE rfc_id = 'n2'",
+                [],
+            )
+            .unwrap();
+        assert_eq!(s.needs_you_count(f, false).unwrap(), 1);
+        // Their answers went out from another tool, so nothing is in Sent. The next email is
+        // still a reply to them, not a sales follow-up, as they've dealt with this conversation.
+        let mut third = msg(3, "n3", &["n1", "n2"]);
+        third.internal_date = Some(now);
+        s.insert_messages(a, f, &[third]).unwrap();
+        s.db()
+            .execute(
+                "UPDATE messages SET old_mail = 1, priority_done = 0 WHERE rfc_id = 'n3'",
+                [],
+            )
+            .unwrap();
+        let waiting = s.mail_to_prioritise(a).unwrap();
+        assert_eq!(waiting.len(), 1);
+        assert!(waiting[0].answers_me);
     }
 
     /// Run by hand: `cargo test -p mailcore --release big_inbox_lists_quickly -- --ignored --nocapture`.

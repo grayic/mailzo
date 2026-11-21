@@ -67,6 +67,8 @@ pub struct Engine {
     pub(crate) file_opener: Option<FileOpener>,
     pub(crate) saved_files: Mutex<HashSet<String>>,
     pub(crate) sending: Mutex<HashSet<i64>>,
+    /// The always-on server, if this person has one.
+    pub(crate) helper: crate::helper::HelperState,
     /// Inboxes being watched for new mail, and how to stop each.
     mail_watches: Mutex<HashMap<i64, MailWatch>>,
     pub(crate) directory_url: String,
@@ -207,6 +209,12 @@ struct AddressDecision {
 #[derive(Deserialize)]
 struct SenderList {
     folder_id: i64,
+}
+
+#[derive(Deserialize)]
+struct SubscriptionMail {
+    account_id: i64,
+    threads: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -394,6 +402,18 @@ struct SubscriptionAdd {
 #[derive(Deserialize)]
 struct SubscriptionKey {
     key: String,
+}
+
+#[derive(Deserialize)]
+struct HelperPairArg {
+    url: String,
+    code: String,
+}
+
+#[derive(Deserialize)]
+struct HelperDisconnectArg {
+    #[serde(default)]
+    anyway: bool,
 }
 
 #[derive(Deserialize)]
@@ -1100,6 +1120,7 @@ impl Engine {
             file_opener: None,
             saved_files: Mutex::new(HashSet::new()),
             sending: Mutex::new(HashSet::new()),
+            helper: Default::default(),
             sent_copy_wait_ms: 1500,
             newest_told: std::sync::atomic::AtomicI64::new(0),
             avatar_sources: (PERSON_SOURCE.into(), LOGO_SOURCE.into()),
@@ -1533,16 +1554,19 @@ impl Engine {
             }
             "schedule_draft" => {
                 let a: ScheduleArg = from_json(args)?;
+                self.helper_take_back(a.id).await?;
                 self.schedule_draft(a.id, a.send_at)
             }
             "unschedule_draft" => {
                 let a: DraftArg = from_json(args)?;
+                self.helper_take_back(a.id).await?;
                 let draft = self.store.draft(a.id)?;
                 self.store.set_send_at(a.id, None, draft.remind_days)?;
                 to_json(self.store.draft(a.id)?)
             }
             "draft_remind" => {
                 let a: RemindArg = from_json(args)?;
+                self.helper_take_back(a.id).await?;
                 let draft = self.store.draft(a.id)?;
                 self.store.set_send_at(
                     a.id,
@@ -1551,6 +1575,20 @@ impl Engine {
                 )?;
                 to_json(self.store.draft(a.id)?)
             }
+            "helper_status" => self.helper_status(),
+            "helper_cloud_on" => self.helper_cloud_on().await,
+            "helper_pair_start" => {
+                let a: HelperPairArg = from_json(args)?;
+                self.helper_pair_start(&a.url, &a.code).await
+            }
+            "helper_pair_confirm" => self.helper_pair_confirm().await,
+            "helper_pair_wait" => self.helper_pair_wait().await,
+            "helper_pair_cancel" => Ok(self.helper_pair_cancel()),
+            "helper_disconnect" => {
+                let a: HelperDisconnectArg = from_json(args)?;
+                self.helper_disconnect(a.anyway).await
+            }
+            "helper_sync_now" => self.helper_tick(true).await,
             "due_tick" => {
                 let a: DueArg = from_json(args)?;
                 self.due_tick(a.quiet_now, a.at).await
@@ -1624,6 +1662,17 @@ impl Engine {
             }
             "newsletters" => to_json(self.newsletters()?),
             "subscriptions" => to_json(self.subscriptions()?),
+            // One subscription's own emails, newest first.
+            "subscription_mail" => {
+                let a: SubscriptionMail = from_json(args)?;
+                let mut out = Vec::new();
+                for thread in a.threads.iter().take(500) {
+                    if let Some(row) = self.store.summary_of(a.account_id, thread)? {
+                        out.push(row);
+                    }
+                }
+                to_json(out)
+            }
             "subscription_edit" => {
                 let a: SubscriptionEdit = from_json(args)?;
                 self.store.edit_subscription(&a.key, a.edit)?;
@@ -2008,6 +2057,7 @@ impl Engine {
             "draft_list" => to_json(self.store.drafts()?),
             "draft_save" => {
                 let a: SaveDraft = from_json(args)?;
+                self.helper_take_back(a.id).await?;
                 to_json(self.draft_save(DraftUpdate {
                     id: a.id,
                     account_id: a.account_id,
@@ -2058,19 +2108,23 @@ impl Engine {
             }
             "draft_discard" => {
                 let a: DraftArg = from_json(args)?;
+                self.helper_take_back(a.id).await?;
                 self.draft_discard(a.id)?;
                 Ok(json!({ "discarded": true }))
             }
             "draft_add_attachment" => {
                 let a: AddAttachment = from_json(args)?;
+                self.helper_take_back(a.id).await?;
                 to_json(self.draft_add_attachment(a.id, &a.name, &a.mime, &a.data)?)
             }
             "draft_remove_attachment" => {
                 let a: RemoveAttachment = from_json(args)?;
+                self.helper_take_back(a.id).await?;
                 to_json(self.draft_remove_attachment(a.id, &a.attachment_id)?)
             }
             "send_draft" => {
                 let a: SendArg = from_json(args)?;
+                self.helper_take_back(a.id).await?;
                 if a.allow_plain {
                     self.store.allow_plain_draft(a.id)?;
                 }

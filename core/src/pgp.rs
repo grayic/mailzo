@@ -107,6 +107,19 @@ pub fn read_secret(armored: &str, passphrase: Option<&str>) -> Result<SignedSecr
         .map_err(|_| {
             invalid("This doesn't look like a private key. Paste the whole key, including the BEGIN and END lines.")
         })?;
+    // A key's passphrase settings can ask for up to 2 GB of memory per part. One unlock at
+    // a time, so a few pasted keys can't use up a shared server's memory together.
+    static UNLOCKING: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let _one_at_a_time = match UNLOCKING.try_lock() {
+        Ok(guard) => guard,
+        // An earlier unlock that went wrong holds nothing that matters.
+        Err(std::sync::TryLockError::Poisoned(e)) => e.into_inner(),
+        Err(std::sync::TryLockError::WouldBlock) => {
+            return Err(invalid(
+                "Another key is being unlocked right now. Try again in a moment.",
+            ))
+        }
+    };
     let password: Password = passphrase.unwrap_or("").into();
     let locked = |_: pgp::errors::Error| {
         if passphrase.is_some_and(|p| !p.is_empty()) {

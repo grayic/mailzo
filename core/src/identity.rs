@@ -995,6 +995,124 @@ impl Engine {
         ))
     }
 
+    /// The same with the person's always-on server, which keeps a copy of its own. Teams
+    /// stay out of it: they're kept with the account server.
+    pub(crate) async fn helper_vault_sync(&self, link: &crate::helper::Link) -> Result<bool> {
+        let secret = link.secret();
+        let mut changed = false;
+        for _ in 0..PUSH_TRIES {
+            let reply: VaultReply = self.helper_post(link, "vault/get", json!({})).await?;
+            let remote = match &reply.blob {
+                Some(blob) => {
+                    let plain = crypto::vault_open(secret, blob)?;
+                    let v: Vault = serde_json::from_slice(&plain).map_err(|_| {
+                        CoreError::Invalid("Your server's copy couldn't be read.".into())
+                    })?;
+                    let seen: i64 = self
+                        .store
+                        .setting(crate::helper::SEEN)?
+                        .and_then(|s| s.parse().ok())
+                        .unwrap_or(0);
+                    if v.version != reply.version || reply.version < seen {
+                        return Err(CoreError::Invalid(
+                            "Your server sent an out-of-date copy, so it was ignored.".into(),
+                        ));
+                    }
+                    Some(v)
+                }
+                None => None,
+            };
+            let (merged, applied) = self.merge_and_apply(remote.as_ref())?;
+            changed |= applied;
+            let merged = without_teams(merged);
+            self.store
+                .set_setting(crate::helper::SEEN, &reply.version.to_string())?;
+            if remote.as_ref().is_some_and(|r| same_vault(r, &merged)) {
+                return Ok(changed);
+            }
+            let next = Vault {
+                version: reply.version + 1,
+                ..merged
+            };
+            let blob = crypto::vault_seal(
+                secret,
+                &serde_json::to_vec(&next).map_err(|e| CoreError::Invalid(e.to_string()))?,
+            )?;
+            let put: Result<Value> = self
+                .helper_post(
+                    link,
+                    "vault/put",
+                    json!({ "expected_version": reply.version, "blob": blob }),
+                )
+                .await;
+            match put {
+                Ok(_) => {
+                    self.store
+                        .set_setting(crate::helper::SEEN, &next.version.to_string())?;
+                    return Ok(changed);
+                }
+                Err(CoreError::Cloud { code, .. }) if code == "vault_changed" => continue,
+                Err(e) => return Err(e),
+            }
+        }
+        Err(CoreError::Network(
+            "Your devices and your server are changing things at the same time. Try again shortly."
+                .into(),
+        ))
+    }
+
+    /// On the server: what it keeps for this person, sealed for the device asking.
+    pub(crate) fn helper_vault_get(&self, secret: &str) -> Result<Value> {
+        let version: i64 = self
+            .store
+            .setting(crate::helper::SERVER_VERSION)?
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0);
+        if version == 0 {
+            return Ok(json!({ "version": 0, "blob": null }));
+        }
+        let (mine, _) = self.merge_and_apply(None)?;
+        let vault = Vault {
+            version,
+            ..without_teams(mine)
+        };
+        let plain = serde_json::to_vec(&vault).map_err(|e| CoreError::Invalid(e.to_string()))?;
+        Ok(json!({ "version": version, "blob": crypto::vault_seal(secret, &plain)? }))
+    }
+
+    /// On the server: a device's newer copy, taken in, if nobody changed it meanwhile.
+    pub(crate) fn helper_vault_put(
+        &self,
+        secret: &str,
+        expected: i64,
+        blob: &str,
+    ) -> Result<Value> {
+        let version: i64 = self
+            .store
+            .setting(crate::helper::SERVER_VERSION)?
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0);
+        if expected != version {
+            return Err(CoreError::Cloud {
+                code: "vault_changed".into(),
+                message: "Something else changed first.".into(),
+            });
+        }
+        let plain = crypto::vault_open(secret, blob)?;
+        let incoming: Vault = serde_json::from_slice(&plain)
+            .map_err(|_| CoreError::Invalid("That copy couldn't be read.".into()))?;
+        if incoming.version != version + 1 {
+            return Err(CoreError::Cloud {
+                code: "vault_changed".into(),
+                message: "Something else changed first.".into(),
+            });
+        }
+        self.merge_and_apply(Some(&without_teams(incoming)))?;
+        self.store
+            .set_setting(crate::helper::SERVER_VERSION, &(version + 1).to_string())?;
+        Ok(json!({ "version": version + 1 }))
+    }
+
     fn read_vault(&self, vault_key: &str, reply: &VaultReply) -> Result<Option<Vault>> {
         let Some(blob) = &reply.blob else {
             return Ok(None);
@@ -1207,6 +1325,18 @@ impl OlderTeamFields {
                 .unwrap_or(0),
             left: last_left.map_or(0, |(team, _)| *team),
         }
+    }
+}
+
+/// A copy without teams, for the always-on server.
+fn without_teams(v: Vault) -> Vault {
+    Vault {
+        team_keys: Vec::new(),
+        teams_left: BTreeMap::new(),
+        team_key: None,
+        team_key_at: 0,
+        team_left: 0,
+        ..v
     }
 }
 

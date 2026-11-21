@@ -16,7 +16,7 @@ import { BulkPanel } from "./components/BulkPanel";
 import { CalendarView } from "./components/CalendarView";
 import { ContactsView, forgetContacts } from "./components/ContactsView";
 import { forgetNewsletters, Newsletters, type NewsletterPlace } from "./components/Newsletters";
-import { PurchaseTabs, Subscriptions } from "./components/Subscriptions";
+import { PurchaseTabs, SubscriptionDetails, Subscriptions } from "./components/Subscriptions";
 import { CommandBar, type Command } from "./components/CommandBar";
 import { Composer } from "./components/Composer";
 import { type AskAbout, AskChat } from "./components/AskChat";
@@ -31,11 +31,12 @@ import { ThreadMenu, type ThreadAction } from "./components/ThreadMenu";
 import { SignIn } from "./components/SignIn";
 import { LockGate } from "./components/AppLock";
 import { TodayStrip } from "./components/TodayStrip";
-import { forgetTrustedSenders, Reader } from "./components/Reader";
+import { forgetTrustedSenders, Reader, type SendingReply } from "./components/Reader";
 import { Sidebar, unreadIn } from "./components/Sidebar";
-import { clickedBanner, hearFromPanel, onBeforeRestart, printPage, tellPanel } from "./api";
+import { clickedBanner, hearFromPanel, onBeforeRestart, onTheWeb, printPage, tellPanel, type Subscription } from "./api";
 import { DraftList, InboxTabs, TABS, TeamTabs, ThreadList, lead, threadKey } from "./components/ThreadList";
 import { flyAway } from "./fly";
+import type { IconSvgElement } from "@hugeicons/react";
 import { Confirm, Icon, IconButton, openSettings, SendingToast, Spinner, Tooltips } from "./components/ui";
 import {
   AllReadToast,
@@ -52,11 +53,12 @@ import {
 import { SettingsProvider, useSettings } from "./settings";
 import { UpdateBar, useAutomaticUpdates } from "./components/Updates";
 import { TagPicker, TagsContext } from "./tags";
-import { AiChat02Icon, AlarmClockIcon, AlertCircleIcon, Calendar03Icon, News01Icon, ShoppingBag01Icon, Cancel01Icon, Clock01Icon, Tag01Icon, UserAdd01Icon, VolumeOffIcon, ContactBookIcon } from "./icons";
+import { AiChat02Icon, AlarmClockIcon, ArrowRight01Icon, LaptopIcon, UserCircleIcon, UserGroupIcon, AlertCircleIcon, Calendar03Icon, News01Icon, ShoppingBag01Icon, Cancel01Icon, Clock01Icon, Tag01Icon, UserAdd01Icon, VolumeOffIcon, ContactBookIcon } from "./icons";
 import { createPortal } from "react-dom";
 import type { Account, Draft, Folder, Message, ReplyStart, SearchFilters, Tag, ThreadSummary } from "./types";
 import { folderLabel, language, tx } from "./i18n";
 import { reloadPaid, usePaid } from "./paid";
+import { keys, shortcutKey } from "./keys";
 
 const REFRESH_EVERY_MS = 60_000;
 /** Most looks are only at the inbox, as going through every folder can take most of a minute. */
@@ -195,6 +197,8 @@ type View =
       screened: boolean;
       /** All mail with them, as Newsletters and Contacts show it, rather than one folder's. */
       with?: { account: number | null; addresses: string[] };
+      /** One subscription's page: what's known about it, then only its own emails. */
+      subscription?: Subscription;
       back: View;
     };
 
@@ -254,7 +258,7 @@ function listMemoryKey(shown: View, tab: string | undefined, unread: boolean): s
         : shown.kind === "later"
           ? `later:${shown.which}`
           : shown.kind === "from"
-            ? `from:${shown.folderId}:${shown.address}:${shown.screened}`
+            ? `from:${shown.folderId}:${shown.address}:${shown.screened}:${shown.subscription?.key ?? ""}`
             : null;
   return place && `${place}|${tab ?? ""}|${unread}`;
 }
@@ -412,6 +416,8 @@ function Mail({
   /** Sent messages waiting out the undo time. */
   const [waitingSends, setWaitingSends] = useState<{ draftId: number; from: number; sendAt: number }[]>([]);
   const [clock, setClock] = useState(() => Date.now());
+  /** Messages being sent right now, after their undo time, until the sent copy shows. */
+  const [sendingNow, setSendingNow] = useState<number[]>([]);
   /** Each message is sent once, however the timers and buttons land. */
   const sendStarted = useRef(new Set<number>());
   const [reopenProblem, setReopenProblem] = useState<{ text: string; code?: string } | undefined>();
@@ -519,6 +525,31 @@ function Mail({
     [moves.gone],
   );
 
+  /** The tab each conversation left from, while its move waits out the undo time. */
+  const leftTab = useRef(new Map<string, string>());
+  /** Tab numbers as they should look now, leaving out mail that's on its way out of the inbox. */
+  const countsShown = useCallback(
+    (counts: Record<string, number>, shown: View) => {
+      const out = { ...counts };
+      for (const [key, { thread }] of moves.gone.current) {
+        const from = leftTab.current.get(key);
+        if (!from) continue;
+        const t = thread as Partial<ThreadSummary>;
+        if (shown.kind === "folder" && t.folder_id !== shown.folderId) continue;
+        const unread = (t.unread_count ?? 0) > 0;
+        if (t.needs_you) {
+          if (!unreadOnlyRef.current || unread) out.needs_you = Math.max(0, (out.needs_you ?? 0) - 1);
+        } else if (unread && (from === "good_to_know" || from === "rest") && out[from] !== undefined) {
+          out[from] = Math.max(0, out[from] - 1);
+        }
+      }
+      return out;
+    },
+    [moves.gone],
+  );
+  const countsShownRef = useRef(countsShown);
+  countsShownRef.current = countsShown;
+
   /** Counts on their way, so every inbox's folders coming in at once asks only once. True if
    *  they were asked for again meanwhile, and so are asked once more when these arrive. */
   const countsComing = useRef(new Map<string, boolean>());
@@ -540,7 +571,7 @@ function Mail({
       .then((counts) => {
         if (asked !== countsChanged.current) return;
         countsMemory.current.set(key, counts);
-        if (viewRef.current === shown && unreadOnlyRef.current === unread) setTabCounts(counts);
+        if (viewRef.current === shown && unreadOnlyRef.current === unread) setTabCounts(countsShownRef.current(counts, shown));
       })
       .catch(() => {})
       .finally(() => {
@@ -573,7 +604,11 @@ function Mail({
     } else if (shown.kind === "tag") {
       list = await api.taggedThreads(shown.tagId);
     } else if (shown.kind === "from") {
-      list = shown.with
+      list = shown.subscription
+        ? shown.subscription.account_id === null
+          ? []
+          : await api.subscriptionMail(shown.subscription.account_id, shown.subscription.threads)
+        : shown.with
         ? await api.mailWith(shown.with.account, shown.with.addresses)
         : await api.listFrom(shown.folderId, shown.address, shown.screened);
     } else if (shown.kind === "search") {
@@ -1004,8 +1039,11 @@ function Mail({
         }
         void reloadHealth();
         setNeedsSignIn((list) => list.filter((x) => x !== id));
-        // A refresh that changed nothing leaves the lists and counts as they are.
+        // A refresh that changed nothing leaves the lists and counts as they are. On the web
+        // the server also fetches by itself every minute, so mail it brought in shows only if
+        // the list is read again: there, every refresh redraws.
         const changedNothing =
+          !onTheWeb &&
           stats.new_messages === 0 &&
           stats.removed_messages === 0 &&
           stats.flags_changed === 0 &&
@@ -1120,13 +1158,17 @@ function Mail({
   }, [onSignedOut, reloadSettings]);
 
   useEffect(() => {
+    // On the web the server holds the inboxes; there's no vault to keep in step with.
+    if (onTheWeb) return;
     void syncInboxList();
     const timer = setInterval(() => void syncInboxList(), REFRESH_EVERY_MS);
     return () => clearInterval(timer);
   }, [syncInboxList]);
 
-  // Watches for a new device asking to join, or this one having been removed.
+  // Watches for a new device asking to join, or this one having been removed. Not on the
+  // web, which signs in by itself and pairs Macs under Settings › Connect.
   useEffect(() => {
+    if (onTheWeb) return;
     const check = () =>
       api
         .pendingDevices()
@@ -1244,7 +1286,7 @@ function Mail({
       const counts = countsMemory.current.get(
         `${shown.kind === "folder" ? shown.folderId : null}|${unreadOnlyRef.current}`,
       );
-      if (counts) setTabCounts(counts);
+      if (counts) setTabCounts(countsShown(counts, shown));
     } else {
       listWait.current = setTimeout(() => {
         setThreads([]);
@@ -1466,7 +1508,11 @@ function Mail({
 
   const pickAccount = (id: number) => {
     setChosenAccount(id);
-    const inbox = foldersBy[id]?.find((f) => f.role === "inbox");
+    // Sent stays Sent: the same folder in the other inbox, a folder of your own by its name.
+    const here = view.kind === "folder" ? Object.values(foldersBy).flat().find((f) => f.id === view.folderId) : undefined;
+    const theirs = foldersBy[id] ?? [];
+    const same = here && theirs.find((f) => f.role === here.role && (f.role !== "folder" || f.name === here.name));
+    const inbox = same ?? theirs.find((f) => f.role === "inbox");
     show(inbox ? { kind: "folder", folderId: inbox.id } : { kind: "all" });
   };
 
@@ -1604,6 +1650,23 @@ function Mail({
     const next = wasOpen && chosen.length === 1 ? nextAfter(from) : null;
     setNotice(null);
     countChange(threads.filter((t) => keys.has(threadKey(t))), () => null);
+    // The tab numbers drop with the rows, not once the undo time is over.
+    const shownNow = viewRef.current;
+    const tabNow = tabOf(shownNow).onTab ?? "";
+    const leaving = threads.filter((t) => keys.has(threadKey(t)));
+    leaving.forEach((t) => leftTab.current.set(threadKey(t), tabNow));
+    setTabCounts((c) => {
+      const out = { ...c };
+      for (const t of leaving) {
+        const unread = t.unread_count > 0;
+        if (t.needs_you) {
+          if (!unreadOnlyRef.current || unread) out.needs_you = Math.max(0, (out.needs_you ?? 0) - 1);
+        } else if (unread && (tabNow === "good_to_know" || tabNow === "rest") && out[tabNow] !== undefined) {
+          out[tabNow] = Math.max(0, out[tabNow] - 1);
+        }
+      }
+      return out;
+    });
     // The whole row where there is one, so it can show in its new folder straight away.
     // Looked up by key, as "Archive all" can move thousands at once.
     const rows = new Map(threads.map((t) => [threadKey(t), t]));
@@ -1623,6 +1686,11 @@ function Mail({
   };
 
   afterMove.current = (moved, problem, to) => {
+    moved.forEach((t) => {
+      if (!moves.gone.current.has(threadKey(t))) leftTab.current.delete(threadKey(t));
+    });
+    // Numbers asked for before the move finished still count it, so the next one shows.
+    countsChanged.current++;
     if (problem) setNotice(problem);
     else {
       // Remembered lists catch up at once, so going back never shows mail in the old place.
@@ -1688,7 +1756,8 @@ function Mail({
 
   const togglePicked = (t: ThreadSummary, range: boolean) => {
     const key = threadKey(t);
-    const anchor = pickAnchor.current;
+    // With nothing picked yet, a range starts from the conversation that's open.
+    const anchor = pickAnchor.current ?? (range && open ? threadKey(open) : null);
     setPicked((current) => {
       const next = new Set(current);
       if (range && anchor) {
@@ -2267,8 +2336,10 @@ function Mail({
   const moveAwayRef = useRef(moveAway);
   moveAwayRef.current = moveAway;
   /** Moves the conversation that's open. */
+  /** What's selected, or else the open conversation. */
   const leaveTo = (to: string) => {
-    if (openRef.current) moveAway([openRef.current], to);
+    if (pickedThreads.length) moveAway(pickedThreads, to);
+    else if (openRef.current) moveAway([openRef.current], to);
   };
   const leaveRef = useRef(leaveTo);
   leaveRef.current = leaveTo;
@@ -2381,10 +2452,10 @@ function Mail({
         searchInput.current?.focus();
         break;
       case "e":
-        if (open && take()) void leaveRef.current("archive");
+        if ((open || pickedThreads.length) && take()) void leaveRef.current("archive");
         break;
       case "#":
-        if (open && take()) void leaveRef.current("trash");
+        if ((open || pickedThreads.length) && take()) void leaveRef.current("trash");
         break;
       case "d": {
         // Done: out of Needs you, for what's selected or else the open one.
@@ -2455,7 +2526,7 @@ function Mail({
         !addingRef.current &&
         !composeStarting.current &&
         THREAD_VIEWS.includes(viewRef.current.kind) &&
-        openRef.current &&
+        (openRef.current || pickedSizeRef.current > 0) &&
         !document.querySelector('[role="dialog"], [role="menu"], .composer-inline') &&
         !(document.activeElement as HTMLElement | null)?.closest("input, textarea, .ProseMirror, iframe")
       ) {
@@ -2467,39 +2538,40 @@ function Mail({
         singleKeyRef.current(e);
         return;
       }
-      if (!e.metaKey || e.shiftKey || e.altKey) return;
-      if (e.key === ",") {
+      const key = shortcutKey(e);
+      if (key === null || e.shiftKey) return;
+      if (key === ",") {
         e.preventDefault();
         setSettingsPage((page) => (page ? null : "general"));
         return;
       }
       // Settings and pop-ups cover the mail, so its shortcuts wait until they close.
       if (document.querySelector(".settings, .scrim")) return;
-      if (e.key === "\\") {
+      if (key === "\\") {
         e.preventDefault();
         setRail((on) => !on);
         return;
       }
-      if (e.key === "k") {
+      if (key === "k") {
         e.preventDefault();
         setCommandOpen(true);
         return;
       }
       // ⌘← and ⌘→ too, as some mice send them for their side buttons, unless they're
       // moving the cursor in something being typed.
-      if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && !typing) {
+      if ((key === "ArrowLeft" || key === "ArrowRight") && !typing) {
         e.preventDefault();
-        if (e.key === "ArrowLeft") travelRef.current.back();
+        if (key === "ArrowLeft") travelRef.current.back();
         else travelRef.current.forward();
         return;
       }
-      if (e.key === "[" || e.key === "]") {
+      if (key === "[" || key === "]") {
         e.preventDefault();
-        if (e.key === "[") travelRef.current.back();
+        if (key === "[") travelRef.current.back();
         else travelRef.current.forward();
         return;
       }
-      if (e.key === "a") {
+      if (key === "a") {
         // Selecting text in a box or an email still works as usual.
         const inside = document.activeElement as HTMLElement | null;
         if (inside?.closest("input, textarea, .ProseMirror, [role='dialog'], iframe")) return;
@@ -2510,26 +2582,26 @@ function Mail({
         setPicked(new Set(threadsRef.current.map(threadKey)));
         return;
       }
-      if (e.key === "f") {
+      if (key === "f") {
         e.preventDefault();
         searchInput.current?.focus();
         searchInput.current?.select();
         return;
       }
       // ⌘1 is All Inbox, and ⌘2 onwards are each account in turn.
-      if (e.key === "1") {
+      if (key === "1") {
         e.preventDefault();
         showRef.current({ kind: "all" });
-      } else if (/^[2-9]$/.test(e.key)) {
-        const target = accountsRef.current?.[Number(e.key) - 2]?.id;
+      } else if (/^[2-9]$/.test(key)) {
+        const target = accountsRef.current?.[Number(key) - 2]?.id;
         if (target !== undefined) {
           e.preventDefault();
           pickAccountRef.current(target);
         }
-      } else if (e.key === "n") {
+      } else if (key === "n") {
         e.preventDefault();
         void composeRef.current("new", null);
-      } else if (e.key === "r" && lastMessage.current) {
+      } else if (key === "r" && lastMessage.current) {
         e.preventDefault();
         void composeRef.current(
           settingsRef.current.reply_default === "reply_all" ? "reply_all" : "reply",
@@ -2593,16 +2665,20 @@ function Mail({
     async (draftId: number) => {
       if (sendStarted.current.has(draftId)) return;
       sendStarted.current.add(draftId);
+      setSendingNow((list) => [...list, draftId]);
       setWaitingSends((list) => list.filter((w) => w.draftId !== draftId));
       try {
         const reply = await api.sendDraft(draftId);
         setNotice(reply.warnings[0] ?? null);
+        // The Sent copy is already in, so the reply shows in its conversation now. It's loaded
+        // before the "Sending" card goes, so the two don't leave a gap between them.
+        await reloadListRef.current().catch(() => {});
+        setSendingNow((list) => list.filter((id) => id !== draftId));
         reloadDrafts();
-        // The Sent copy is already in, so the reply shows in its conversation now.
-        void reloadListRef.current();
         void reloadAccountsRef.current();
         void sync();
       } catch (e) {
+        setSendingNow((list) => list.filter((id) => id !== draftId));
         // Nothing is lost. It goes back to being a draft, with the reason showing.
         if (composingRef.current !== null) {
           setNotice(tx("Your message went back to Drafts: {0}", { "0": say(e) }));
@@ -2675,9 +2751,42 @@ function Mail({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accountIds]);
 
-  // A web page's menu (Reload and so on) makes no sense in an app. Text boxes and
-  // selected text keep theirs, for copy and paste.
+  // In Glass the list's header sits on the frame, and the email beside it starts where the
+  // white under that header starts, so the two read as one panel.
   useEffect(() => {
+    if (settings.theme !== "glass") return;
+    let watch: ResizeObserver | null = null;
+    let tries = 0;
+    let frame = 0;
+    // The page may still be loading, so it looks again each frame until the header is there.
+    const start = () => {
+      const app = document.querySelector<HTMLElement>(".app");
+      const panel = document.querySelector(".main-panel");
+      const heads = [...document.querySelectorAll(".main-panel > * > .list-head, .main-panel > * > .list-search")];
+      if (!app || !panel || heads.length === 0) {
+        if (tries++ < 120) frame = requestAnimationFrame(start);
+        return;
+      }
+      const measure = () => {
+        const bottom = Math.max(...heads.map((h) => h.getBoundingClientRect().bottom));
+        app.style.setProperty("--glass-top", `${Math.round(bottom - panel.getBoundingClientRect().top)}px`);
+      };
+      measure();
+      watch = new ResizeObserver(measure);
+      heads.forEach((h) => watch?.observe(h));
+    };
+    start();
+    return () => {
+      cancelAnimationFrame(frame);
+      watch?.disconnect();
+      document.querySelector<HTMLElement>(".app")?.style.removeProperty("--glass-top");
+    };
+  }, [settings.theme, settings.layout, view, rail, open, listLoading]);
+
+  // A web page's menu (Reload and so on) makes no sense in an app. Text boxes and
+  // selected text keep theirs, for copy and paste. In a browser it's a web page, so its menu stays.
+  useEffect(() => {
+    if (onTheWeb) return;
     const menu = (e: MouseEvent) => {
       const inText = (e.target as HTMLElement).closest?.("input, textarea, .ProseMirror, .selectable");
       if (!inText && !window.getSelection()?.toString()) e.preventDefault();
@@ -3031,8 +3140,8 @@ function Mail({
   /** Everything the command bar can do, right now. */
   const commands = (): Command[] => {
     const list: Command[] = [
-      { id: "new", label: tx("New message"), keys: "⌘N", section: "Mail", run: () => void compose("new", null) },
-      { id: "all", label: tx("Go to All Inbox"), keys: "⌘1", section: tx("Go to"), run: () => show({ kind: "all" }) },
+      { id: "new", label: tx("New message"), keys: keys("⌘N"), section: "Mail", run: () => void compose("new", null) },
+      { id: "all", label: tx("Go to All Inbox"), keys: keys("⌘1"), section: tx("Go to"), run: () => show({ kind: "all" }) },
       { id: "ask", label: tx("Ask your email"), section: tx("Go to"), run: () => show({ kind: "ask" }) },
       { id: "calendar", label: tx("Go to Calendar"), section: tx("Go to"), run: () => show({ kind: "calendar" }) },
       { id: "contacts", label: tx("Go to Contacts"), section: tx("Go to"), run: () => show({ kind: "contacts" }) },
@@ -3047,8 +3156,8 @@ function Mail({
       { id: "deadlines", label: tx("Go to Deadlines"), section: tx("Go to"), run: () => show({ kind: "later", which: "deadlines" }) },
       { id: "no_reply", label: tx("Go to No reply yet"), section: tx("Go to"), run: () => show({ kind: "later", which: "no_reply" }) },
       { id: "refresh", label: tx("Refresh mail"), section: "Mail", run: refreshNow },
-      { id: "sidebar", label: tx("Collapse or expand the sidebar"), keys: "⌘\\", section: tx("Go to"), run: () => setRail((on) => !on) },
-      { id: "settings", label: tx("Open Settings"), keys: "⌘,", section: "Settings", run: () => setSettingsPage("general") },
+      { id: "sidebar", label: tx("Collapse or expand the sidebar"), keys: keys("⌘\\"), section: tx("Go to"), run: () => setRail((on) => !on) },
+      { id: "settings", label: tx("Open Settings"), keys: keys("⌘,"), section: "Settings", run: () => setSettingsPage("general") },
       { id: "rules", label: tx("Open Filters"), section: "Settings", run: () => setSettingsPage("rules") },
       { id: "health", label: tx("Open Storage"), section: "Settings", run: () => setSettingsPage("mail") },
       { id: "keys", label: tx("Show keyboard shortcuts"), section: "Settings", run: () => setSettingsPage("shortcuts") },
@@ -3089,6 +3198,27 @@ function Mail({
     }
     return list;
   };
+
+  // Replies to the open conversation show in it the moment they're sent, not once they've gone.
+  const sendingHere: SendingReply[] = (() => {
+    if (!messages || messages.length === 0) return [];
+    const ids = new Set(messages.map((m) => m.id));
+    const mine = (id: number) => drafts.find((d) => d.id === id && d.parent_message_id !== null && ids.has(d.parent_message_id));
+    const text = (d: Draft) => (d.text || d.html.replace(/<[^>]*>/g, " ")).replace(/[ \t]+/g, " ").trim().slice(0, 600);
+    const to = (d: Draft) => d.to.map((a) => a.name || a.address).join(", ");
+    return [
+      ...waitingSends.flatMap((w) => {
+        const d = mine(w.draftId);
+        return d
+          ? [{ id: d.id, to: to(d), text: text(d), secondsLeft: Math.max(0, Math.ceil((w.sendAt - clock) / 1000)), onUndo: () => undoSend(d.id) }]
+          : [];
+      }),
+      ...sendingNow.flatMap((id) => {
+        const d = mine(id);
+        return d ? [{ id: d.id, to: to(d), text: text(d), secondsLeft: null }] : [];
+      }),
+    ];
+  })();
 
   const overlays = (
     <>
@@ -3241,6 +3371,7 @@ function Mail({
         <MoveToast
           move={moves.waiting}
           onUndo={() => {
+            moves.waiting?.threads.forEach((t) => leftTab.current.delete(threadKey(t)));
             moves.undo();
             void reloadList().catch(() => {});
             accountsRef.current?.forEach((a) => void reloadFolders(a.id).catch(() => {}));
@@ -3296,10 +3427,26 @@ function Mail({
         >
           {accounts.length === 0 && (
             <>
-              <button className="link-btn" onClick={() => setSettingsPage("team")}>
-                {tx("Join a team")}</button>
-              <button className="link-btn" onClick={() => setSettingsPage("account")}>
-                {tx("Your account")}</button>
+              {onTheWeb && (
+                <WelcomeOption
+                  icon={LaptopIcon}
+                  label={tx("Bring them from your Mac")}
+                  help={tx("Copy your inboxes and settings from Mailzo on your Mac.")}
+                  onClick={() => setSettingsPage("always_on")}
+                />
+              )}
+              <WelcomeOption
+                icon={UserGroupIcon}
+                label={tx("Join a team")}
+                help={tx("Use the invite your team sent you.")}
+                onClick={() => setSettingsPage("team")}
+              />
+              <WelcomeOption
+                icon={UserCircleIcon}
+                label={tx("Your account")}
+                help={tx("Your profile, devices and sign-out.")}
+                onClick={() => setSettingsPage("account")}
+              />
             </>
           )}
         </AddAccount>
@@ -3408,7 +3555,7 @@ function Mail({
             onReceipts={() => show({ kind: "later", which: "purchases" })}
             onEmails={(sub) => {
               const inbox = allFolders.find((f) => f.role === "inbox" && f.account_id === sub.account_id) ?? allFolders.find((f) => f.role === "inbox");
-              if (inbox) show({ kind: "from", folderId: inbox.id, address: sub.addresses[0], title: sub.name, screened: false, with: { account: sub.account_id, addresses: sub.addresses }, back: { kind: "subscriptions" } });
+              if (inbox) show({ kind: "from", folderId: inbox.id, address: sub.addresses[0] ?? "", title: sub.name, screened: false, with: { account: sub.account_id, addresses: sub.addresses }, subscription: sub, back: { kind: "subscriptions" } });
             }}
           />
         ) : view.kind === "newsletters" ? (
@@ -3509,6 +3656,7 @@ function Mail({
             top={
               <>
                 {fullLayout ? aboveList(false) : searchTop}
+                {view.kind === "from" && view.subscription && <SubscriptionDetails sub={view.subscription} accounts={accounts} />}
                 {view.kind === "later" && view.which === "purchases" && (
                   <div className="purchase-tabs">
                     <PurchaseTabs on="receipts" onSubscriptions={() => show({ kind: "subscriptions" })} />
@@ -3593,7 +3741,9 @@ function Mail({
                 : null
             }
             emptyTitle={
-              view.kind === "search"
+              view.kind === "from" && view.subscription
+                ? tx("No emails for this one")
+                : view.kind === "search"
                 ? tx("No emails found")
                 : tabsShown && tab === "needs_you"
                   ? tx("Nothing needs you right now")
@@ -3701,6 +3851,7 @@ function Mail({
             }
             onCopyCode={() => openMarked && afterCodeCopied(openMarked)}
             messages={messages}
+            sending={sendingHere}
             loading={open !== null}
             folder={openFolder}
             folders={openFolders}
@@ -3781,5 +3932,21 @@ function Mail({
         />
       )}
     </TagsContext.Provider>
+  );
+}
+
+/** Another way to start, under the welcome card: an icon, what it does, and an arrow. */
+function WelcomeOption({ icon, label, help, onClick }: { icon: IconSvgElement; label: string; help: string; onClick: () => void }) {
+  return (
+    <button type="button" className="welcome-option" onClick={onClick}>
+      <span className="welcome-option-icon">
+        <Icon icon={icon} size="s" />
+      </span>
+      <span className="welcome-option-words">
+        <span className="welcome-option-label">{label}</span>
+        <span className="welcome-option-help">{help}</span>
+      </span>
+      <Icon icon={ArrowRight01Icon} size="s" />
+    </button>
   );
 }

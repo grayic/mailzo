@@ -1,4 +1,5 @@
 import { RefObject, useLayoutEffect } from "react";
+import { keys } from "../keys";
 import { AiMagicIcon, Cancel01Icon, Search01Icon } from "../icons";
 import { Icon, IconButton, Spinner } from "./ui";
 import { tx } from "../i18n";
@@ -61,7 +62,7 @@ export function SearchBox({
       {value ? (
         <IconButton icon={Cancel01Icon} label={tx("Clear search")} small onClick={onClear} />
       ) : (
-        <span className="kbd-quiet">⌘F</span>
+        <span className="kbd-quiet">{keys("⌘F")}</span>
       )}
     </form>
   );

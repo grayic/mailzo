@@ -142,9 +142,19 @@ fn selftest_click_banner(app: tauri::AppHandle, account_id: i64, thread_id: Stri
 fn set_window_theme(window: tauri::WebviewWindow, theme: String) {
     let _ = window.set_theme(match theme.as_str() {
         "light" => Some(tauri::Theme::Light),
-        "dark" => Some(tauri::Theme::Dark),
+        // Glass is a dark frame the desktop shows through, around light mail.
+        "dark" | "glass" => Some(tauri::Theme::Dark),
         _ => None,
     });
+    // The see-through frame is macOS's own blur, behind a page left clear where the frame is.
+    #[cfg(target_os = "macos")]
+    let _ = window.set_effects((theme == "glass").then(|| {
+        tauri::window::EffectsBuilder::new()
+            .effect(tauri::window::Effect::HudWindow)
+            // The same when another app is in front, not a flat grey.
+            .state(tauri::window::EffectState::Active)
+            .build()
+    }));
 }
 
 /// The unread count on the Dock icon and beside the menu bar icon. Zero hides it.
@@ -1048,6 +1058,9 @@ pub fn run() {
             let window = window
                 .title_bar_style(tauri::TitleBarStyle::Overlay)
                 .hidden_title(true)
+                // Clear, so the Glass look can let the desktop through. Every other look paints
+                // the whole page, so nothing shows through them.
+                .transparent(true)
                 .traffic_light_position(tauri::LogicalPosition::new(16.0, 18.0))
                 .visible(!std::env::args().any(|a| a == login_item::BACKGROUND))
                 // Mail is checked from the page, which has to keep running while it's hidden.

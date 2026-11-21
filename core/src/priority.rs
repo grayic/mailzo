@@ -520,8 +520,8 @@ pub(crate) fn due_date(text: &str) -> Option<i64> {
     (at > crate::identity::unix_now() - 30 * DAY).then_some(at)
 }
 
-struct Waiting {
-    id: i64,
+pub(crate) struct Waiting {
+    pub(crate) id: i64,
     from: String,
     to: String,
     subject: String,
@@ -529,7 +529,7 @@ struct Waiting {
     category: String,
     risk: i64,
     auth: String,
-    answers_me: bool,
+    pub(crate) answers_me: bool,
     chases: bool,
 }
 
@@ -602,7 +602,7 @@ impl Store {
         )?)
     }
 
-    fn mail_to_prioritise(&self, account_id: i64) -> Result<Vec<Waiting>> {
+    pub(crate) fn mail_to_prioritise(&self, account_id: i64) -> Result<Vec<Waiting>> {
         let db = self.db();
         let cutoff = crate::identity::unix_now() - RECENT_DAYS * DAY;
         // Too old to be waiting on anyone now.
@@ -617,7 +617,13 @@ impl Store {
                     COALESCE(v.risk, 0), m.auth,
                     EXISTS (SELECT 1 FROM messages s JOIN folders sf ON sf.id = s.folder_id
                             WHERE s.account_id = m.account_id AND s.thread_id = m.thread_id
-                              AND sf.role = 'sent' AND s.date < m.date),
+                              AND sf.role = 'sent' AND s.date < m.date)
+                    -- Saying a conversation needs them or not means it's a real one to them,
+                    -- even when their answers go out from another tool: the next email is
+                    -- judged as a reply, never as a sales follow-up.
+                    OR EXISTS (SELECT 1 FROM thread_marks k
+                               WHERE k.account_id = m.account_id AND k.thread_id = m.thread_id
+                                 AND k.priority IS NOT NULL),
                     EXISTS (SELECT 1 FROM messages e
                             WHERE e.account_id = m.account_id AND e.thread_id = m.thread_id
                               AND e.id != m.id AND e.date < m.date

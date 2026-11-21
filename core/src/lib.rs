@@ -19,6 +19,7 @@ pub mod engine;
 pub mod error;
 mod facts;
 pub mod google;
+pub mod helper;
 pub mod ics;
 pub mod identity;
 pub mod images;

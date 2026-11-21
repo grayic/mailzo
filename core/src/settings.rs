@@ -142,7 +142,7 @@ const DEFS: &[Def] = &[
     follows("spam_mode", "trial", &["trial", "move"]),
     follows("smart_tabs", "on", ON_OFF),
     // Appearance, on this device
-    here("theme", "system", &["system", "light", "dark"]),
+    here("theme", "system", &["system", "light", "dark", "glass"]),
     here(
         "reading_size",
         "normal",
