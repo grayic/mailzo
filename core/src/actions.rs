@@ -31,15 +31,24 @@ const SAFE_TO_OPEN: &[&str] = &[
     "mp3", "m4a", "aac", "wav", "aif", "aiff", "flac", "ogg", "mp4", "m4v", "mov", "avi", "webm",
 ];
 
-fn by_folder(copies: Vec<&ThreadCopy>) -> BTreeMap<String, (Option<u32>, Vec<u32>)> {
-    let mut map: BTreeMap<String, (Option<u32>, Vec<u32>)> = BTreeMap::new();
+fn by_folder(copies: Vec<&ThreadCopy>) -> BTreeMap<String, (Option<u32>, Vec<&ThreadCopy>)> {
+    let mut map: BTreeMap<String, (Option<u32>, Vec<&ThreadCopy>)> = BTreeMap::new();
     for c in copies {
         map.entry(c.folder_path.clone())
             .or_insert((c.uid_validity, vec![]))
             .1
-            .push(c.uid);
+            .push(c);
     }
     map
+}
+
+fn uids_of(copies: &[&ThreadCopy]) -> Vec<u32> {
+    copies.iter().map(|c| c.uid).collect()
+}
+
+/// A problem that goes away by itself, so a read mark that met it is simply sent again later.
+pub(crate) fn passes(e: &CoreError) -> bool {
+    matches!(e, CoreError::Network(_) | CoreError::Offline)
 }
 
 fn renumbered() -> CoreError {
@@ -132,31 +141,65 @@ impl Engine {
         copies: Vec<&ThreadCopy>,
         query: &str,
     ) -> Result<()> {
-        let read_marks: Vec<(i64, u32)> = if query.contains("\\Seen") {
-            copies.iter().map(|c| (c.folder_id, c.uid)).collect()
-        } else {
-            Vec::new()
-        };
-        let pushed = async {
-            let mut conn = self.connect_account(account_id).await?;
-            for (path, (validity, uids)) in by_folder(copies) {
-                let mailbox = conn.select_folder(&path).await?;
-                if mailbox.uid_validity != validity {
-                    return Err(renumbered());
-                }
-                conn.store_flags(&uids, query).await?;
+        let is_read_mark = query.contains("\\Seen");
+        let mut heard: Vec<(i64, u32)> = Vec::new();
+        let mut missed: Vec<(i64, u32)> = Vec::new();
+        let mut problem: Option<CoreError> = None;
+        match self.connect_account(account_id).await {
+            Err(e) => {
+                missed.extend(copies.iter().map(|c| (c.folder_id, c.uid)));
+                problem = Some(e);
             }
-            conn.logout().await;
-            Ok(())
+            Ok(mut conn) => {
+                // Folder by folder, so one that's gone or been renumbered doesn't keep the
+                // marks for every other folder from getting there.
+                let mut connection_gone = false;
+                for (path, (validity, these)) in by_folder(copies) {
+                    let keys = these.iter().map(|c| (c.folder_id, c.uid));
+                    if connection_gone {
+                        missed.extend(keys);
+                        continue;
+                    }
+                    let uids = uids_of(&these);
+                    let done = async {
+                        let mailbox = conn.select_folder(&path).await?;
+                        if mailbox.uid_validity != validity {
+                            return Err(renumbered());
+                        }
+                        conn.store_flags(&uids, query).await
+                    }
+                    .await;
+                    match done {
+                        Ok(()) => heard.extend(keys),
+                        Err(e) => {
+                            connection_gone = matches!(e, CoreError::Network(_));
+                            missed.extend(keys);
+                            problem.get_or_insert(e);
+                        }
+                    }
+                }
+                if !connection_gone {
+                    conn.logout().await;
+                }
+            }
         }
-        .await;
-        // The change didn't get there, and the server's counter won't show one. The next
-        // refresh compares every message, which brings this device back in line.
-        if pushed.is_err() {
+        // A change didn't get there, and the server's counter won't show one. The next
+        // refresh compares every message; read marks still waiting are sent first.
+        if problem.is_some() {
             self.store.forget_change_counters(account_id)?;
         }
-        self.store.seen_heard(&read_marks, pushed.is_ok());
-        pushed
+        if is_read_mark {
+            let seen = query.starts_with('+');
+            self.store.seen_heard(&heard, seen, true);
+            self.store.seen_heard(&missed, seen, false);
+        }
+        match problem {
+            // A read mark that couldn't get through for now is sent on the next refresh by
+            // itself, so there's nothing for the person to do about it.
+            Some(e) if is_read_mark && passes(&e) => Ok(()),
+            Some(e) => Err(e),
+            None => Ok(()),
+        }
     }
 
     /// Moves a conversation's messages out of one folder. `to` is `archive`,
@@ -431,37 +474,15 @@ impl Engine {
     ) -> Result<()> {
         let mut all: Vec<(BulkThread, Vec<ThreadCopy>)> = Vec::new();
         for t in threads {
-            if matches!(action, "seen" | "move" | "delete_forever") {
+            if matches!(action, "move" | "delete_forever") {
                 let thread = self.store.real_thread(&t.thread_id)?;
                 self.store.clear_returned(account_id, &thread)?;
             }
             let copies = self.store.thread_copies(account_id, &t.thread_id)?;
             all.push((t, copies));
         }
+        // Read and unread go through `bulk_seen`, never here.
         match action {
-            "seen" | "unseen" => {
-                let seen = action == "seen";
-                let changing: Vec<&ThreadCopy> = all
-                    .iter()
-                    .flat_map(|(_, copies)| copies.iter())
-                    .filter(|c| c.seen != seen)
-                    .collect();
-                if changing.is_empty() {
-                    return Ok(());
-                }
-                for c in &changing {
-                    self.store.set_message_seen(c.id, seen)?;
-                }
-                if self.store.account(account_id)?.prefs.team_shared {
-                    return Ok(());
-                }
-                let query = if seen {
-                    "+FLAGS.SILENT (\\Seen)"
-                } else {
-                    "-FLAGS.SILENT (\\Seen)"
-                };
-                self.store_on_server(account_id, changing, query).await
-            }
             "star" | "unstar" => {
                 let on = action == "star";
                 let changing: Vec<&ThreadCopy> = all
@@ -522,7 +543,8 @@ impl Engine {
                     ("move", None) => return Err(CoreError::Invalid("Bad request.".into())),
                     _ => None,
                 };
-                for (path, (validity, uids)) in by_folder(here.clone()) {
+                for (path, (validity, these)) in by_folder(here.clone()) {
+                    let uids = uids_of(&these);
                     if target.as_deref() == Some(path.as_str()) {
                         continue;
                     }

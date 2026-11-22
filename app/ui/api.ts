@@ -568,6 +568,8 @@ export type Rule = {
   inbox: string | null;
   /** Which emails, in the person's words, for AI to judge. When set, `when` doesn't apply. */
   ai?: string | null;
+  /** What it does later, each step this many seconds after the email arrived. Normal filters only. */
+  later?: { after: number; then: Rule["then"] }[];
   when: {
     from: string[];
     to: string[];

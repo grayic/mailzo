@@ -250,6 +250,199 @@ async fn a_rule_is_read_previewed_saved_and_then_acts_on_new_mail() {
         .contains(&"Third invoice".to_string()));
 }
 
+/// When `NEW_MAIL` arrives.
+const NEW_MAIL_AT: i64 = 2_109_146_400;
+
+#[tokio::test]
+async fn a_filter_that_waits_acts_once_its_time_is_up() {
+    let r = rig().await;
+    // Here before the filter was made: not its to touch.
+    r.server.add_message(
+        "INBOX",
+        &mail("old@t", "Stripe <bill@stripe.com>", "Old invoice", "Pay"),
+        false,
+    );
+    r.sync().await;
+    let mut rule = stripe_rule();
+    rule["then"] = json!({});
+    rule["later"] = json!([{ "after": 3600, "then": { "move_to": "Accounts" } }]);
+    r.call("rule_save", json!({ "rule": rule })).await;
+
+    r.add("new@t", "Stripe <bill@stripe.com>", "New invoice", "Pay");
+    r.sync().await;
+    assert!(
+        r.subjects("inbox")
+            .await
+            .contains(&"New invoice".to_string()),
+        "not as it arrives"
+    );
+    r.call("due_tick", json!({ "at": NEW_MAIL_AT + 1800 }))
+        .await;
+    assert!(
+        r.server.folder_messages("Accounts").is_empty(),
+        "not before its hour"
+    );
+
+    r.call("due_tick", json!({ "at": NEW_MAIL_AT + 7200 }))
+        .await;
+    let filed: Vec<String> = r
+        .server
+        .folder_messages("Accounts")
+        .iter()
+        .map(|m| {
+            String::from_utf8_lossy(&m.raw)
+                .lines()
+                .find(|l| l.starts_with("Subject:"))
+                .unwrap_or("")
+                .to_string()
+        })
+        .collect();
+    assert_eq!(
+        filed,
+        ["Subject: New invoice"],
+        "once its hour is up, and only the new one"
+    );
+}
+
+#[tokio::test]
+async fn a_filter_that_waits_does_it_only_once() {
+    let r = rig().await;
+    r.sync().await;
+    let rule = json!({
+        "sentence": "Mark Stripe as read after an hour",
+        "when": { "from": ["stripe"] },
+        "then": {},
+        "later": [{ "after": 3600, "then": { "mark_read": true } }],
+    });
+    r.call("rule_save", json!({ "rule": rule })).await;
+    let uid = r.add("new@t", "Stripe <bill@stripe.com>", "New invoice", "Pay");
+    r.sync().await;
+    assert!(!r.server.is_seen("INBOX", uid), "not as it arrives");
+    r.call("due_tick", json!({ "at": NEW_MAIL_AT + 7200 }))
+        .await;
+    assert!(r.server.is_seen("INBOX", uid));
+
+    // Marked unread again by hand, it stays that way.
+    r.server.set_flag("INBOX", uid, "\\Seen", false);
+    r.sync().await;
+    r.call("due_tick", json!({ "at": NEW_MAIL_AT + 3 * 7200 }))
+        .await;
+    assert!(!r.server.is_seen("INBOX", uid));
+}
+
+/// Where the fake server has an email now, by its subject.
+fn folder_of(r: &Rig, subject: &str) -> Option<&'static str> {
+    ["INBOX", "Archive", "Junk", "Trash", "Accounts"]
+        .into_iter()
+        .find(|f| {
+            r.server
+                .folder_messages(f)
+                .iter()
+                .any(|m| String::from_utf8_lossy(&m.raw).contains(&format!("Subject: {subject}")))
+        })
+}
+
+#[tokio::test]
+async fn a_filter_marks_read_at_once_and_deletes_a_week_later() {
+    let r = rig().await;
+    r.sync().await;
+    let rule = json!({
+        "when": { "from": ["stripe"] },
+        "then": { "mark_read": true },
+        "later": [{ "after": 604_800, "then": { "trash": true } }],
+    });
+    r.call("rule_save", json!({ "rule": rule })).await;
+    let uid = r.add("new@t", "Stripe <bill@stripe.com>", "New invoice", "Pay");
+    r.sync().await;
+    assert!(r.server.is_seen("INBOX", uid), "read as it arrives");
+    assert_eq!(folder_of(&r, "New invoice"), Some("INBOX"));
+    r.call("due_tick", json!({ "at": NEW_MAIL_AT + 86_400 }))
+        .await;
+    assert_eq!(
+        folder_of(&r, "New invoice"),
+        Some("INBOX"),
+        "kept for the week"
+    );
+    r.call("due_tick", json!({ "at": NEW_MAIL_AT + 8 * 86_400 }))
+        .await;
+    assert_eq!(folder_of(&r, "New invoice"), Some("Trash"));
+}
+
+#[tokio::test]
+async fn a_later_step_finds_the_mail_where_the_filter_put_it() {
+    let r = rig().await;
+    r.sync().await;
+    let rule = json!({
+        "when": { "from": ["stripe"] },
+        "then": { "spam": true },
+        "later": [{ "after": 3600, "then": { "trash": true } }],
+    });
+    r.call("rule_save", json!({ "rule": rule })).await;
+    r.add("new@t", "Stripe <bill@stripe.com>", "New invoice", "Pay");
+    r.sync().await;
+    r.sync().await;
+    assert_eq!(folder_of(&r, "New invoice"), Some("Junk"));
+    r.call("due_tick", json!({ "at": NEW_MAIL_AT + 7200 }))
+        .await;
+    assert_eq!(folder_of(&r, "New invoice"), Some("Trash"));
+}
+
+#[tokio::test]
+async fn do_it_now_does_what_the_filter_would_have_done_by_now() {
+    let r = rig().await;
+    // Arrived weeks ago, and a minute from now.
+    r.server.add_message(
+        "INBOX",
+        &mail("old@t", "Stripe <bill@stripe.com>", "Old invoice", "Pay"),
+        false,
+    );
+    r.add("new@t", "Stripe <bill@stripe.com>", "New invoice", "Pay");
+    r.sync().await;
+    let rule = json!({
+        "when": { "from": ["stripe"] },
+        "then": { "mark_read": true, "spam": true },
+        "later": [{ "after": 604_800, "then": { "trash": true } }],
+    });
+    let id = r.call("rule_save", json!({ "rule": rule })).await["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    r.call("rule_apply_now", json!({ "id": id })).await;
+    assert_eq!(
+        folder_of(&r, "Old invoice"),
+        Some("Trash"),
+        "its week is long past"
+    );
+    assert_eq!(
+        folder_of(&r, "New invoice"),
+        Some("Junk"),
+        "not yet a week old"
+    );
+}
+
+#[tokio::test]
+async fn a_filter_saved_with_one_wait_still_waits() {
+    let r = rig().await;
+    r.sync().await;
+    // How a filter that waits was saved before each action had its own time.
+    let rule = json!({
+        "when": { "from": ["stripe"] },
+        "then": { "trash": true },
+        "after": 3600,
+    });
+    r.call("rule_save", json!({ "rule": rule })).await;
+    r.add("new@t", "Stripe <bill@stripe.com>", "New invoice", "Pay");
+    r.sync().await;
+    assert_eq!(
+        folder_of(&r, "New invoice"),
+        Some("INBOX"),
+        "not deleted as it arrives"
+    );
+    r.call("due_tick", json!({ "at": NEW_MAIL_AT + 7200 }))
+        .await;
+    assert_eq!(folder_of(&r, "New invoice"), Some("Trash"));
+}
+
 #[tokio::test]
 async fn a_filter_that_reads_inside_files_a_whole_batch_in_one_quick_look() {
     let r = rig().await;

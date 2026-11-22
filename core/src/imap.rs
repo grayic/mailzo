@@ -379,15 +379,14 @@ impl ImapConnection {
         sorted.dedup();
         for batch in sorted.chunks(STORE_BATCH) {
             let set = uid_ranges(batch);
-            let session = &mut self.session;
-            let query = query.to_string();
-            timed(COMMAND_TIMEOUT, "Updating mail", async move {
-                session
-                    .uid_store(set, query)
-                    .await?
-                    .try_collect::<Vec<_>>()
-                    .await
-            })
+            // Not `uid_store`: its answer ends at the server's last word without reading it,
+            // so a server saying no to the change looked the same as one saying yes.
+            let command = format!("UID STORE {set} {query}");
+            timed(
+                COMMAND_TIMEOUT,
+                "Updating mail",
+                self.session.run_command_and_check_ok(command),
+            )
             .await?
             .map_err(imap_err)?;
         }
@@ -437,24 +436,17 @@ impl ImapConnection {
         .map_err(imap_err)?;
         let set = uid_ranges(uids);
         let narrow = caps.has_str("UIDPLUS");
-        let session = &mut self.session;
-        timed(COMMAND_TIMEOUT, "Removing mail", async move {
-            if narrow {
-                session
-                    .uid_expunge(set)
-                    .await?
-                    .try_collect::<Vec<_>>()
-                    .await
-                    .map(|_| ())
-            } else {
-                session
-                    .expunge()
-                    .await?
-                    .try_collect::<Vec<_>>()
-                    .await
-                    .map(|_| ())
-            }
-        })
+        // The server's answer is read, as in `store_flags`, so a refusal isn't taken for done.
+        let command = if narrow {
+            format!("UID EXPUNGE {set}")
+        } else {
+            "EXPUNGE".to_string()
+        };
+        timed(
+            COMMAND_TIMEOUT,
+            "Removing mail",
+            self.session.run_command_and_check_ok(command),
+        )
         .await?
         .map_err(imap_err)?;
         Ok(())

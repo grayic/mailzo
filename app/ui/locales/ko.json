@@ -1852,5 +1852,11 @@
  "Your profile, devices and sign-out.": "프로필, 기기 및 로그아웃.",
  "Settings › Connect › Connect my own server": "설정 › 연결 › 내 서버에 연결",
  "On your server, open Settings › Connect and make a pairing code.": "서버에서 설정 › 연결을(를) 열고 페어링 코드를 만듭니다.",
- "With a key, people can send you email only you can read. It's kept locked on your server, and only the public half is shared. A key made here isn't on your Mac: to read encrypted email in both, import the same key in each.": "키가 있으면 다른 사람이 나만 읽을 수 있는 이메일을 보낼 수 있습니다. 키는 서버에 잠긴 채 보관되며 공개 부분만 공유됩니다. 여기서 만든 키는 Mac에 없습니다. 둘 다에서 암호화된 이메일을 읽으려면 같은 키를 각각 가져오세요."
+ "With a key, people can send you email only you can read. It's kept locked on your server, and only the public half is shared. A key made here isn't on your Mac: to read encrypted email in both, import the same key in each.": "키가 있으면 다른 사람이 나만 읽을 수 있는 이메일을 보낼 수 있습니다. 키는 서버에 잠긴 채 보관되며 공개 부분만 공유됩니다. 여기서 만든 키는 Mac에 없습니다. 둘 다에서 암호화된 이메일을 읽으려면 같은 키를 각각 가져오세요.",
+ "Filter messages like this": "이런 메일 필터링",
+ "When": "언제",
+ "Right away": "바로",
+ "After 1 hour": "1시간 후",
+ "After 1 week": "1주 후",
+ "After 30 days": "30일 후"
 }

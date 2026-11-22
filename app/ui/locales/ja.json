@@ -1852,5 +1852,11 @@
  "Your profile, devices and sign-out.": "プロフィール、デバイス、サインアウト。",
  "Settings › Connect › Connect my own server": "設定 › 接続 › 自分のサーバーに接続",
  "On your server, open Settings › Connect and make a pairing code.": "サーバーで 設定 › 接続 を開き、ペアリングコードを作成します。",
- "With a key, people can send you email only you can read. It's kept locked on your server, and only the public half is shared. A key made here isn't on your Mac: to read encrypted email in both, import the same key in each.": "鍵があると、あなただけが読めるメールを送ってもらえます。鍵はサーバーにロックして保管され、共有されるのは公開部分だけです。ここで作った鍵はMacにはありません。両方で暗号化メールを読むには、同じ鍵をそれぞれに読み込んでください。"
+ "With a key, people can send you email only you can read. It's kept locked on your server, and only the public half is shared. A key made here isn't on your Mac: to read encrypted email in both, import the same key in each.": "鍵があると、あなただけが読めるメールを送ってもらえます。鍵はサーバーにロックして保管され、共有されるのは公開部分だけです。ここで作った鍵はMacにはありません。両方で暗号化メールを読むには、同じ鍵をそれぞれに読み込んでください。",
+ "Filter messages like this": "このようなメールをフィルタ",
+ "When": "タイミング",
+ "Right away": "すぐに",
+ "After 1 hour": "1時間後",
+ "After 1 week": "1週間後",
+ "After 30 days": "30日後"
 }

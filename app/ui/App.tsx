@@ -27,6 +27,7 @@ import { McpSendApproval } from "./components/McpSendApproval";
 import { Brief, RestBar } from "./components/Priority";
 import { SearchBox, SearchFoot, SearchNote } from "./components/SearchBox";
 import { SettingsWindow } from "./components/settings/SettingsWindow";
+import { FilterDialog, type FilterLike } from "./components/settings/RulesPage";
 import { ThreadMenu, type ThreadAction } from "./components/ThreadMenu";
 import { SignIn } from "./components/SignIn";
 import { LockGate } from "./components/AppLock";
@@ -368,6 +369,8 @@ function Mail({
   useAutomaticUpdates();
   /** The Settings page showing, or null when Settings is closed. */
   const [settingsPage, setSettingsPage] = useState<string | null>(null);
+  /** The email a new filter is being made like, from its menu. */
+  const [filterLike, setFilterLike] = useState<FilterLike | null>(null);
   openSettings.at = setSettingsPage;
   /** Inboxes whose browser sign-in has run out. */
   const [needsSignIn, setNeedsSignIn] = useState<number[]>([]);
@@ -2136,6 +2139,13 @@ function Mail({
       case "needs_me":
         await setNeedsMe(chosen, action.on);
         break;
+      case "filter_like":
+        // A new filter right here, already set to these senders.
+        setFilterLike({
+          from: [...new Set(chosen.map((t) => t.lead_address).filter(Boolean))].join(", "),
+          subject: thread.subject,
+        });
+        break;
       case "select":
         togglePicked(thread, false);
         break;
@@ -3337,6 +3347,21 @@ function Mail({
           />
         );
       })()}
+      {filterLike && (
+        <FilterDialog
+          like={filterLike}
+          accounts={accounts}
+          foldersBy={foldersBy}
+          onSaved={() => {
+            void reloadList().catch(() => {});
+            void sync();
+          }}
+          onClose={(said) => {
+            setFilterLike(null);
+            setNotice(said?.problem ?? said?.note ?? null);
+          }}
+        />
+      )}
       {deleting && (
         <Confirm
           title={

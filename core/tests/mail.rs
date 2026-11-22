@@ -796,6 +796,94 @@ async fn a_refresh_before_the_server_hears_doesnt_undo_reading_all() {
 }
 
 #[tokio::test]
+async fn read_marks_that_cant_reach_the_server_are_sent_on_the_next_refresh() {
+    let r = rig().await;
+    let threads = two_unread(&r).await;
+    // The server turns everyone away for a while.
+    r.imap.state.lock().unwrap().login_refusal = Some("Try again later".into());
+    r.call(
+        "bulk_threads",
+        json!({ "threads": threads, "action": "seen" }),
+    )
+    .await;
+    assert_eq!(unread_here(&r).await, 0, "read here straight away");
+    assert!(!r.imap.has_flag("INBOX", 1, "\\Seen"));
+    // Back again: the next refresh sends what's waiting before it reads the server's marks,
+    // instead of putting the old unread marks back.
+    r.imap.state.lock().unwrap().login_refusal = None;
+    r.sync().await;
+    assert_eq!(unread_here(&r).await, 0, "they don't come back as unread");
+    assert!(r.imap.has_flag("INBOX", 1, "\\Seen") && r.imap.has_flag("INBOX", 2, "\\Seen"));
+}
+
+#[tokio::test]
+async fn a_read_mark_the_server_turns_down_lets_its_own_mark_count_again() {
+    let r = rig().await;
+    let threads = two_unread(&r).await;
+    r.imap.state.lock().unwrap().refuse_store_in = Some("INBOX".into());
+    let done = r
+        .call(
+            "bulk_threads",
+            json!({ "threads": threads, "action": "seen" }),
+        )
+        .await;
+    assert!(
+        done["problem"].is_string(),
+        "the person hears it didn't take: {done}"
+    );
+    // Tried once more on the refresh, turned down again, and then the server's word counts
+    // rather than this Mac showing something else for a week.
+    r.sync().await;
+    r.sync().await;
+    assert_eq!(unread_here(&r).await, 2);
+}
+
+#[tokio::test]
+async fn a_read_mark_meeting_a_passing_problem_is_no_error() {
+    let r = rig().await;
+    r.imap
+        .add_message("INBOX", &mail("a@x.test", ME, "1@x", "", "One", "x"), false);
+    r.sync().await;
+    let (t, _) = r.inbox_message().await;
+    r.imap.state.lock().unwrap().login_refusal = Some("Try again later".into());
+    // It's kept and sent again by itself, so the person isn't told to try again.
+    r.call(
+        "set_thread_seen",
+        json!({ "account_id": r.account, "thread_id": t, "seen": true }),
+    )
+    .await;
+    r.imap.state.lock().unwrap().login_refusal = None;
+    r.sync().await;
+    assert!(r.imap.has_flag("INBOX", 1, "\\Seen"));
+}
+
+#[tokio::test]
+async fn one_folder_that_fails_doesnt_keep_read_marks_from_the_others() {
+    let r = rig().await;
+    let one = mail("a@x.test", ME, "1@x", "", "One", "x");
+    r.imap.add_message("INBOX", &one, false);
+    r.imap.add_message("Archive", &one, false);
+    r.sync().await;
+    let (t, _) = r.inbox_message().await;
+    // The other copy's folder goes from the server before the server hears.
+    r.imap
+        .state
+        .lock()
+        .unwrap()
+        .folders
+        .retain(|f| f.name != "Archive");
+    r.code(
+        "set_thread_seen",
+        json!({ "account_id": r.account, "thread_id": t, "seen": true }),
+    )
+    .await;
+    assert!(
+        r.imap.has_flag("INBOX", 1, "\\Seen"),
+        "the inbox copy still got it"
+    );
+}
+
+#[tokio::test]
 async fn reading_all_shows_here_first_then_tells_the_servers() {
     let r = rig().await;
     let threads = two_unread(&r).await;

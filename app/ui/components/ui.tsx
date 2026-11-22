@@ -635,6 +635,7 @@ export function Confirm({
   confirm,
   keep,
   danger,
+  busy,
   onConfirm,
   onKeep,
 }: {
@@ -643,6 +644,8 @@ export function Confirm({
   confirm: string;
   keep: string;
   danger?: boolean;
+  /** Doing it: shows on the button, and nothing else can be pressed meanwhile. */
+  busy?: boolean;
   onConfirm: () => void;
   onKeep: () => void;
 }) {
@@ -653,15 +656,17 @@ export function Confirm({
       onClose={onKeep}
       footer={
         <>
-          <button type="button" className="btn btn-secondary" onClick={onKeep}>
+          <button type="button" className="btn btn-secondary" disabled={busy} onClick={onKeep}>
             {keep}
           </button>
           <button
             type="button"
             autoFocus
             className={`btn ${danger ? "btn-danger" : "btn-primary"}`}
+            disabled={busy}
             onClick={onConfirm}
           >
+            {busy && <Spinner size="xs" />}
             {confirm}
           </button>
         </>

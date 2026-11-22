@@ -4267,6 +4267,16 @@ button.activity-line:hover,
   width: 100%;
 }
 
+/* An action, what it needs, and when it happens. */
+.rule-row.rule-row-timed {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+}
+
+.rule-row-timed > button {
+  justify-content: space-between;
+  width: 100%;
+}
+
 /* Long enough that the common uses can be read in full. */
 .filter-form > .field > button {
   justify-content: space-between;

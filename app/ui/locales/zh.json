@@ -1852,5 +1852,11 @@
  "Your profile, devices and sign-out.": "你的资料、设备和退出登录。",
  "Settings › Connect › Connect my own server": "设置 › 连接 › 连接我自己的服务器",
  "On your server, open Settings › Connect and make a pairing code.": "在服务器上打开 设置 › 连接 并生成配对码。",
- "With a key, people can send you email only you can read. It's kept locked on your server, and only the public half is shared. A key made here isn't on your Mac: to read encrypted email in both, import the same key in each.": "有了密钥，别人就能给你发送只有你能读的邮件。它锁定保存在你的服务器上，只分享公开的那一半。在这里创建的密钥不在你的 Mac 上：要在两边都读取加密邮件，请在两边导入同一个密钥。"
+ "With a key, people can send you email only you can read. It's kept locked on your server, and only the public half is shared. A key made here isn't on your Mac: to read encrypted email in both, import the same key in each.": "有了密钥，别人就能给你发送只有你能读的邮件。它锁定保存在你的服务器上，只分享公开的那一半。在这里创建的密钥不在你的 Mac 上：要在两边都读取加密邮件，请在两边导入同一个密钥。",
+ "Filter messages like this": "过滤此类邮件",
+ "When": "何时",
+ "Right away": "立即",
+ "After 1 hour": "1 小时后",
+ "After 1 week": "1 周后",
+ "After 30 days": "30 天后"
 }

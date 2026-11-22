@@ -774,6 +774,17 @@ const MIGRATIONS: &[&str] = &[
                     WHERE k.account_id = messages.account_id AND k.thread_id = messages.thread_id
                       AND k.priority = 'good_to_know' AND messages.date > COALESCE(k.priority_upto, 0));
 "#,
+    // Read marks the server hasn't heard yet. Kept here, not just in memory, so one that
+    // couldn't get through is tried again on the next refresh instead of being undone by it.
+    r#"
+    CREATE TABLE seen_pending (
+        folder_id INTEGER NOT NULL,
+        uid INTEGER NOT NULL,
+        seen INTEGER NOT NULL,
+        at INTEGER NOT NULL DEFAULT (unixepoch()),
+        PRIMARY KEY (folder_id, uid)
+    );
+"#,
 ];
 
 const ACCOUNT_COLUMNS: &str =
@@ -790,6 +801,8 @@ const READERS: usize = 4;
 const HELD_AFTER_HEARD: Duration = Duration::from_secs(60);
 /// A server that hasn't answered by now isn't waited for any longer.
 const HELD_WAITING_MOST: Duration = Duration::from_secs(300);
+/// A read mark the server still hasn't taken after this long is given up on.
+const PENDING_SEEN_SECONDS: i64 = 7 * 86_400;
 
 /// Unused pages, of 4 KB, before giving them back to the Mac is worth rewriting the file: 40 MB.
 const ROOM_WORTH_GIVING_BACK: i64 = 10_000;
@@ -2388,6 +2401,8 @@ impl Store {
         let mut db = self.db();
         let tx = db.transaction()?;
         let n = tx.execute("DELETE FROM messages WHERE folder_id = ?1", [folder_id])?;
+        // Renumbered, so these numbers point at other mail now.
+        tx.execute("DELETE FROM seen_pending WHERE folder_id = ?1", [folder_id])?;
         tx.execute(
             "UPDATE folders SET uid_validity = ?2, last_uid = 0, modseq = NULL, uid_next = NULL,
                server_total = NULL WHERE id = ?1",
@@ -2684,7 +2699,15 @@ impl Store {
     ) -> Result<usize> {
         // Read with the database held, which a change here holds too, so neither lands between.
         let mut db = self.db();
-        let held = self.held_seen_in(folder_id);
+        let mut held = self.held_seen_in(folder_id);
+        {
+            // Marks still waiting for the server win over what it says now.
+            let mut st = db.prepare_cached("SELECT uid FROM seen_pending WHERE folder_id = ?1")?;
+            let rows = st.query_map([folder_id], |r| r.get::<_, u32>(0))?;
+            for uid in rows {
+                held.insert(uid?);
+            }
+        }
         let mut changed = 0;
         let tx = db.transaction()?;
         {
@@ -4394,6 +4417,10 @@ impl Store {
                 "UPDATE messages SET seen = ?2 WHERE id = ?1",
                 params![c.id, seen],
             )?;
+            tx.execute(
+                "INSERT OR REPLACE INTO seen_pending (folder_id, uid, seen) VALUES (?1, ?2, ?3)",
+                params![c.folder_id, c.uid, seen],
+            )?;
         }
         tx.commit()?;
         Ok(())
@@ -4402,7 +4429,12 @@ impl Store {
     /// The server has these read marks now. One that couldn't be told lets go at once, so the
     /// next refresh shows what it really has.
     /// By folder and UID.
-    pub fn seen_heard(&self, copies: &[(i64, u32)], heard: bool) {
+    /// One that couldn't be told stays waiting in `seen_pending`, for the next refresh to send.
+    pub fn seen_heard(&self, copies: &[(i64, u32)], seen: bool, heard: bool) {
+        if heard {
+            // Only marks still the way they were sent: one changed since waits for its own turn.
+            let _ = self.pending_seen_sent(copies, seen);
+        }
         let mut held = self.seen_held.lock().unwrap_or_else(|e| e.into_inner());
         let now = Instant::now();
         for key in copies {
@@ -4412,6 +4444,78 @@ impl Store {
                 held.remove(key);
             }
         }
+    }
+
+    /// These read marks reached the server.
+    pub fn pending_seen_sent(&self, copies: &[(i64, u32)], seen: bool) -> Result<()> {
+        let mut db = self.db();
+        let tx = db.transaction()?;
+        for (folder_id, uid) in copies {
+            tx.execute(
+                "DELETE FROM seen_pending WHERE folder_id = ?1 AND uid = ?2 AND seen = ?3",
+                params![folder_id, uid, seen],
+            )?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Read marks in this folder still to send, as (uid, what this Mac shows now). What's
+    /// shown now is what goes, even if it changed after the mark was first kept. Marks for
+    /// mail that's no longer here are let go.
+    pub fn pending_seen_in(&self, folder_id: i64) -> Result<Vec<(u32, bool)>> {
+        let mut db = self.db();
+        let tx = db.transaction()?;
+        tx.execute(
+            "DELETE FROM seen_pending WHERE folder_id = ?1 AND NOT EXISTS
+               (SELECT 1 FROM messages m WHERE m.folder_id = ?1 AND m.uid = seen_pending.uid)",
+            [folder_id],
+        )?;
+        let rows: Vec<(u32, bool)> = {
+            let mut st = tx.prepare_cached(
+                "SELECT p.uid, m.seen FROM seen_pending p
+                   JOIN messages m ON m.folder_id = p.folder_id AND m.uid = p.uid
+                  WHERE p.folder_id = ?1 ORDER BY p.uid",
+            )?;
+            let rows = st.query_map([folder_id], |r| Ok((r.get(0)?, r.get(1)?)))?;
+            rows.collect::<rusqlite::Result<_>>()?
+        };
+        tx.commit()?;
+        Ok(rows)
+    }
+
+    /// What this Mac shows for these, by UID: read or not.
+    pub fn local_seen(&self, folder_id: i64, uids: &[u32]) -> Result<Vec<(u32, bool)>> {
+        let db = self.db();
+        let mut st =
+            db.prepare_cached("SELECT seen FROM messages WHERE folder_id = ?1 AND uid = ?2")?;
+        let mut out = Vec::new();
+        for uid in uids {
+            if let Some(seen) = st
+                .query_row(params![folder_id, uid], |r| r.get::<_, bool>(0))
+                .optional()?
+            {
+                out.push((*uid, seen));
+            }
+        }
+        Ok(out)
+    }
+
+    /// The server won't take these, so what it says counts again.
+    pub fn drop_pending_seen(&self, folder_id: i64) -> Result<()> {
+        self.db()
+            .execute("DELETE FROM seen_pending WHERE folder_id = ?1", [folder_id])?;
+        Ok(())
+    }
+
+    /// Marks still not taken after a week are given up on: the mail has most likely gone
+    /// or been changed somewhere else since. Once per refresh, not once per folder.
+    pub fn expire_pending_seen(&self) -> Result<()> {
+        self.db().execute(
+            "DELETE FROM seen_pending WHERE at < unixepoch() - ?1",
+            [PENDING_SEEN_SECONDS],
+        )?;
+        Ok(())
     }
 
     /// The UIDs in this folder whose read marks are still held, letting go of those done with.
@@ -6282,7 +6386,7 @@ mod tests {
             ("bulk mail", MASS_MAIL_TO_SORT.to_string()),
             (
                 "rules",
-                crate::rules::rule_mail_sql(crate::rules::RULE_MAIL_NEW),
+                crate::rules::rule_mail_sql(crate::rules::RULE_MAIL_NEW, true),
             ),
         ] {
             let plan = plan(&sql);
@@ -6357,11 +6461,48 @@ mod tests {
             "stars still come"
         );
         // The server has the first now, and still a refresh that read it a moment before can
-        // land. The second couldn't be told, so the server's mark is the one that counts.
-        s.seen_heard(&[(f, 1)], true);
-        s.seen_heard(&[(f, 2)], false);
+        // land. The second couldn't be told: it stays read here and waits to be sent again,
+        // rather than being undone by the next refresh.
+        s.seen_heard(&[(f, 1)], true, true);
+        s.seen_heard(&[(f, 2)], true, false);
         s.apply_flags(f, &stale, false).unwrap();
-        assert_eq!((row(1, "seen"), row(2, "seen")), (1, 0));
+        assert_eq!((row(1, "seen"), row(2, "seen")), (1, 1));
+        assert_eq!(s.pending_seen_in(f).unwrap(), vec![(2, true)]);
+        // Once it's through, the server's marks count again.
+        s.pending_seen_sent(&[(f, 2)], true).unwrap();
+        assert!(s.pending_seen_in(f).unwrap().is_empty());
+        s.seen_held.lock().unwrap().clear();
+        s.apply_flags(f, &stale, false).unwrap();
+        assert_eq!((row(1, "seen"), row(2, "seen")), (0, 0));
+    }
+
+    #[test]
+    fn a_read_mark_changed_again_before_the_server_heard_keeps_waiting() {
+        let (s, a, f) = setup();
+        s.insert_messages(a, f, &[msg(1, "a", &[])]).unwrap();
+        let id: i64 = s
+            .db()
+            .query_row("SELECT id FROM messages WHERE uid = 1", [], |r| r.get(0))
+            .unwrap();
+        let copy = ThreadCopy {
+            is_draft: false,
+            id,
+            folder_id: f,
+            folder_path: "INBOX".into(),
+            folder_role: "inbox".into(),
+            uid_validity: None,
+            uid: 1,
+            seen: false,
+            flagged: false,
+        };
+        s.set_seen_held(&[&copy], true).unwrap();
+        s.set_seen_held(&[&copy], false).unwrap();
+        // The first change reaching the server doesn't count for the second.
+        s.seen_heard(&[(f, 1)], true, true);
+        assert_eq!(s.pending_seen_in(f).unwrap(), vec![(1, false)]);
+        // Renumbering drops what's waiting, as the number means other mail now.
+        s.reset_folder(f, Some(9)).unwrap();
+        assert!(s.pending_seen_in(f).unwrap().is_empty());
     }
 
     #[test]

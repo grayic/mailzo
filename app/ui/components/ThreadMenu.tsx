@@ -24,6 +24,7 @@ import {
   MailReply01Icon,
   MailReplyAll01Icon,
   StarIcon,
+  FilterHorizontalIcon,
 } from "../icons";
 import type { Draft, Folder, ThreadSummary } from "../types";
 import { MoveToItems } from "./BulkPanel";
@@ -48,7 +49,8 @@ export type ThreadAction =
   | { kind: "pick_snooze" }
   | { kind: "follow_up"; at: number | null }
   | { kind: "pick_follow_up" }
-  | { kind: "needs_me"; on: boolean };
+  | { kind: "needs_me"; on: boolean }
+  | { kind: "filter_like" };
 
 const TABS: [string, string][] = [
   ["general", tx("Good to know")],
@@ -243,6 +245,8 @@ export function ThreadMenu({
           )}
           <MenuItem icon={FolderExportIcon} onClick={() => setPage("move")}>
             {tx("Move to…")}</MenuItem>
+          <MenuItem icon={FilterHorizontalIcon} onClick={() => act({ kind: "filter_like" })}>
+            {tx("Filter messages like this")}</MenuItem>
           {inJunk || thread.risk > 0 ? (
             <MenuItem icon={CheckmarkCircle02Icon} onClick={() => act({ kind: "not_spam" })}>
               {tx("Not spam")}</MenuItem>

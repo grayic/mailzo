@@ -15,6 +15,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 pub(crate) const RULE_PREFIX: &str = "rule:";
+/// For a filter's later step: it has acted on mail that arrived up to this time. Kept on this
+/// device only, so a filter made here doesn't act on mail from before it, wherever it goes.
+const RULE_UPTO_PREFIX: &str = "rule_upto:";
+
+fn step_key(rule: &str, after: i64) -> String {
+    format!("{RULE_UPTO_PREFIX}{rule}:{after}")
+}
 /// Older mail arriving in the inbox was moved there by hand, so rules leave it alone.
 const NEW_WITHIN_SECONDS: i64 = 2 * 86_400;
 const PREVIEW_REACH: i64 = 20_000;
@@ -108,9 +115,54 @@ pub struct Rule {
     pub ai: Option<String>,
     pub when: RuleWhen,
     pub then: RuleThen,
+    /// What it does later, each step this long after the email arrived. Only a normal filter
+    /// has these: an AI filter decides as the email comes in.
+    #[serde(default)]
+    pub later: Vec<RuleLater>,
+    /// How a filter that waited was saved before each action had its own time: all of `then`,
+    /// this long after. Only read, and made into a step.
+    #[serde(default, skip_serializing)]
+    pub after: Option<i64>,
+}
+
+/// A filter's later step: what it does, this long after the email arrived.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RuleLater {
+    /// Seconds after the email arrived.
+    pub after: i64,
+    #[serde(default)]
+    pub then: RuleThen,
 }
 
 impl Rule {
+    /// As it's kept: a wait saved the old way is a step, as otherwise its actions would happen
+    /// at once, and steps with nothing to do go. An AI filter has no steps.
+    fn tidied(mut self) -> Self {
+        if let Some(after) = self.after.take() {
+            let then = std::mem::take(&mut self.then);
+            self.later.push(RuleLater { after, then });
+        }
+        self.then = self.then.tidied();
+        if self.ai.is_some() {
+            self.later.clear();
+        }
+        self.later = std::mem::take(&mut self.later)
+            .into_iter()
+            .map(|s| RuleLater {
+                after: s.after,
+                then: s.then.tidied(),
+            })
+            .filter(|s| !s.then.is_empty())
+            .collect();
+        self.later.sort_by_key(|s| s.after);
+        self
+    }
+
+    /// Everything it does, now and later.
+    fn every_then(&self) -> impl Iterator<Item = &RuleThen> {
+        std::iter::once(&self.then).chain(self.later.iter().map(|s| &s.then))
+    }
+
     /// The words of an AI filter, if this is one.
     pub fn ai_words(&self) -> Option<&str> {
         self.ai.as_deref().map(str::trim).filter(|t| !t.is_empty())
@@ -232,6 +284,21 @@ impl RuleThen {
             self.spam = true;
         }
         self
+    }
+
+    /// This, then `later` on top: marks add up, and a later move takes the place of this one's.
+    fn and_then(&self, later: &RuleThen) -> RuleThen {
+        let moves = if later.moves() { later } else { self };
+        RuleThen {
+            move_to: moves.move_to.clone(),
+            spam: moves.spam,
+            archive: moves.archive,
+            trash: moves.trash,
+            mark_read: self.mark_read || later.mark_read,
+            star: self.star || later.star,
+            tab: later.tab.clone().or_else(|| self.tab.clone()),
+            mute: self.mute || later.mute,
+        }
     }
 
     /// Whether it takes the email out of the inbox.
@@ -366,6 +433,8 @@ pub fn understand_plainly(sentence: &str) -> Rule {
         ai: None,
         when,
         then,
+        later: Vec::new(),
+        after: None,
     }
 }
 
@@ -373,35 +442,80 @@ pub fn understand_plainly(sentence: &str) -> Rule {
 pub(crate) const RULE_MAIL_NEW: &str =
     "m.account_id = ?1 AND f.role = 'inbox' AND m.rule_done = 0 ORDER BY m.date ASC LIMIT ?2";
 
-/// Mail for rules to look at, with what it says, picked by `tail`.
-pub(crate) fn rule_mail_sql(tail: &str) -> String {
+/// Mail for rules to look at, with what it says, picked by `tail`. Without `bodies`, only the
+/// preview line stands for what it says: reading every email's whole text is most of the time,
+/// and only a rule about what's inside needs it.
+pub(crate) fn rule_mail_sql(tail: &str, bodies: bool) -> String {
+    let (text, files, has_body, join) = if bodies {
+        (
+            "COALESCE(b.text, m.snippet)",
+            "COALESCE(b.attachments_json, '[]') LIKE '%\"inline\":false%'",
+            "b.message_id IS NOT NULL",
+            "LEFT JOIN bodies b ON b.message_id = m.id",
+        )
+    } else {
+        ("m.snippet", "0", "0", "")
+    };
     format!(
         "SELECT m.id, m.account_id, m.folder_id, m.thread_id, m.from_name || ' ' || m.from_addr,
-                m.to_json || ' ' || m.cc_json, m.subject, COALESCE(b.text, m.snippet),
-                COALESCE(b.attachments_json, '[]') LIKE '%\"inline\":false%', m.date,
-                b.message_id IS NOT NULL, COALESCE(m.rfc_id, '#' || m.id), m.size, m.body_tries
+                m.to_json || ' ' || m.cc_json, m.subject, {text}, {files}, m.date,
+                {has_body}, COALESCE(m.rfc_id, '#' || m.id), m.size, m.body_tries
          FROM messages m JOIN folders f ON f.id = m.folder_id
-         LEFT JOIN bodies b ON b.message_id = m.id
+         {join}
          WHERE {tail}"
     )
 }
 
 impl Store {
     pub fn rule_mail_new(&self, account_id: i64, limit: i64) -> Result<Vec<RuleMail>> {
-        self.rule_mail_where(RULE_MAIL_NEW, params![account_id, limit])
+        self.rule_mail_where(RULE_MAIL_NEW, true, params![account_id, limit])
+    }
+
+    /// Mail in these folders that arrived after `from` and by `until`.
+    pub fn rule_mail_arrived(
+        &self,
+        account_id: i64,
+        folders: &[i64],
+        from: i64,
+        until: i64,
+        bodies: bool,
+    ) -> Result<Vec<RuleMail>> {
+        if folders.is_empty() {
+            return Ok(Vec::new());
+        }
+        let ids: Vec<String> = folders.iter().map(i64::to_string).collect();
+        self.rule_mail_where(
+            &format!(
+                "m.account_id = ?1 AND m.folder_id IN ({}) AND m.date > ?2 AND m.date <= ?3",
+                ids.join(",")
+            ),
+            bodies,
+            params![account_id, from, until],
+        )
     }
 
     /// Mail in the inbox, newest first, to look through for a rule.
-    pub fn rule_mail_existing(&self, account_id: i64, limit: i64) -> Result<Vec<RuleMail>> {
+    pub fn rule_mail_existing(
+        &self,
+        account_id: i64,
+        limit: i64,
+        bodies: bool,
+    ) -> Result<Vec<RuleMail>> {
         self.rule_mail_where(
             "m.account_id = ?1 AND f.role = 'inbox' ORDER BY m.date DESC LIMIT ?2",
+            bodies,
             params![account_id, limit],
         )
     }
 
-    fn rule_mail_where(&self, tail: &str, args: &[&dyn rusqlite::ToSql]) -> Result<Vec<RuleMail>> {
+    fn rule_mail_where(
+        &self,
+        tail: &str,
+        bodies: bool,
+        args: &[&dyn rusqlite::ToSql],
+    ) -> Result<Vec<RuleMail>> {
         let db = self.db();
-        let mut st = db.prepare_cached(&rule_mail_sql(tail))?;
+        let mut st = db.prepare_cached(&rule_mail_sql(tail, bodies))?;
         let rows = st.query_map(args, |r| {
             Ok(RuleMail {
                 id: r.get(0)?,
@@ -453,7 +567,8 @@ impl Engine {
         m.size <= self.options.body_max_bytes && m.body_tries < 3
     }
 
-    /// The filters that look at this inbox's new mail. A team's shared inbox has none.
+    /// The filters that look at this inbox's new mail as it arrives. A team's shared inbox has
+    /// none, and a filter that waits looks later.
     fn rules_for(&self, account: &Account) -> Result<Vec<Rule>> {
         if account.prefs.team_shared {
             return Ok(vec![]);
@@ -461,7 +576,8 @@ impl Engine {
         Ok(self
             .rules()?
             .into_iter()
-            .filter(|r| r.enabled && r.inbox.as_ref().is_none_or(|i| *i == account.sync_id))
+            .filter(|r| r.enabled && !r.then.is_empty())
+            .filter(|r| r.inbox.as_ref().is_none_or(|i| *i == account.sync_id))
             .collect())
     }
 
@@ -491,7 +607,8 @@ impl Engine {
             .all_settings()?
             .into_iter()
             .filter(|(k, _)| k.starts_with(RULE_PREFIX))
-            .filter_map(|(_, v)| serde_json::from_str(&v).ok())
+            .filter_map(|(_, v)| serde_json::from_str::<Rule>(&v).ok())
+            .map(Rule::tidied)
             .collect();
         out.sort_by(|a, b| a.id.cmp(&b.id));
         Ok(out)
@@ -592,6 +709,8 @@ impl Engine {
             enabled: true,
             inbox: None,
             ai: None,
+            later: Vec::new(),
+            after: None,
             when: RuleWhen {
                 from: a.from,
                 to: a.to,
@@ -634,15 +753,22 @@ impl Engine {
         } else if rule.when.is_empty() {
             return Err(CoreError::Invalid("Say which emails this is for.".into()));
         }
-        if rule.then.is_empty() {
+        if rule.every_then().all(RuleThen::is_empty) {
             return Err(CoreError::Invalid("Say what should happen to them.".into()));
         }
-        if let Some(tab) = &rule.then.tab {
+        for then in rule.every_then() {
+            self.check_then(then)?;
+        }
+        Ok(())
+    }
+
+    fn check_then(&self, then: &RuleThen) -> Result<()> {
+        if let Some(tab) = &then.tab {
             if !matches!(tab.as_str(), "general" | "newsletters" | "promotions") {
                 return Err(CoreError::Invalid("Bad request.".into()));
             }
         }
-        if let Some(name) = &rule.then.move_to {
+        if let Some(name) = &then.move_to {
             let found = self.folders_named(name)?;
             if found == 0 {
                 return Err(CoreError::Invalid(format!(
@@ -697,7 +823,10 @@ impl Engine {
         let mut count = 0;
         let mut samples = Vec::new();
         for account in self.rule_inboxes(rule)? {
-            for m in self.store.rule_mail_existing(account.id, PREVIEW_REACH)? {
+            for m in
+                self.store
+                    .rule_mail_existing(account.id, PREVIEW_REACH, rule.when.needs_body())?
+            {
                 if rule.when.matches(&m) {
                     count += 1;
                     if samples.len() < 5 {
@@ -714,12 +843,20 @@ impl Engine {
         Ok(json!({ "count": count, "samples": samples }))
     }
 
-    pub(crate) async fn rule_save(&self, mut rule: Rule) -> Result<Value> {
-        rule.then = rule.then.tidied();
+    pub(crate) async fn rule_save(&self, rule: Rule) -> Result<Value> {
+        let mut rule = rule.tidied();
         self.check_rule(&rule)?;
         if rule.id.is_empty() {
             // Sorts by when it was made, which is the order they're applied in.
             rule.id = format!("{:012}-{}", unix_now(), crate::crypto::random_hex(4));
+        }
+        // A later step starts with mail that arrives from now on. What's already here is the
+        // person's to ask for, as with any filter.
+        for step in &rule.later {
+            let upto = step_key(&rule.id, step.after);
+            if self.store.setting(&upto)?.is_none() {
+                self.store.set_setting(&upto, &unix_now().to_string())?;
+            }
         }
         self.store.set_setting(
             &format!("{RULE_PREFIX}{}", rule.id),
@@ -731,8 +868,99 @@ impl Engine {
 
     pub(crate) async fn rule_delete(&self, id: &str) -> Result<Value> {
         self.store.delete_setting(&format!("{RULE_PREFIX}{id}"))?;
+        let steps = format!("{RULE_UPTO_PREFIX}{id}");
+        for (key, _) in self.store.all_settings()? {
+            if key.starts_with(&steps) {
+                self.store.delete_setting(&key)?;
+            }
+        }
         self.settings_changed().await?;
         Ok(json!({ "deleted": true }))
+    }
+
+    /// Filters' later steps: each acts on mail that arrived after it last looked and is now old
+    /// enough, so every email gets it once, and a Mac that was closed catches up when it opens.
+    /// It looks in the inbox and wherever the filter's earlier actions put the mail. One that
+    /// can't act now looks at the same mail again next time.
+    pub(crate) async fn run_waiting_rules(&self, now: i64) -> Result<usize> {
+        let mut changed = 0;
+        for rule in self.rules()? {
+            if !rule.enabled || rule.ai.is_some() {
+                continue;
+            }
+            for step in &rule.later {
+                let key = step_key(&rule.id, step.after);
+                let Some(from) = self
+                    .store
+                    .setting(&key)?
+                    .and_then(|v| v.parse::<i64>().ok())
+                else {
+                    // Made on another device: it starts here from now.
+                    self.store.set_setting(&key, &now.to_string())?;
+                    continue;
+                };
+                let until = now - step.after;
+                if until <= from {
+                    continue;
+                }
+                let mut acted = true;
+                for account in self.rule_inboxes(&rule)? {
+                    let folders = self.step_folders(&account, &rule, step.after)?;
+                    let chosen: Vec<RuleMail> = self
+                        .store
+                        .rule_mail_arrived(
+                            account.id,
+                            &folders,
+                            from,
+                            until,
+                            rule.when.needs_body(),
+                        )?
+                        .into_iter()
+                        .filter(|m| rule.when.matches(m))
+                        .collect();
+                    let chosen: Vec<&RuleMail> = chosen.iter().collect();
+                    match self.rule_act(&account, &step.then, &chosen).await {
+                        Ok(()) => changed += chosen.len(),
+                        Err(e) => {
+                            tracing::debug!("filter's later step: {e}");
+                            acted = false;
+                        }
+                    }
+                }
+                if acted {
+                    self.store.set_setting(&key, &until.to_string())?;
+                }
+            }
+        }
+        Ok(changed)
+    }
+
+    /// Where a step looks: the inbox, and wherever the filter's actions before it put the mail.
+    fn step_folders(&self, account: &Account, rule: &Rule, after: i64) -> Result<Vec<i64>> {
+        let before: Vec<&RuleThen> = std::iter::once(&rule.then)
+            .chain(
+                rule.later
+                    .iter()
+                    .filter(|s| s.after < after)
+                    .map(|s| &s.then),
+            )
+            .collect();
+        Ok(self
+            .store
+            .list_folders(account.id)?
+            .iter()
+            .filter(|f| {
+                f.role == "inbox"
+                    || before.iter().any(|t| {
+                        (t.archive && f.role == "archive")
+                            || (t.spam && f.role == "junk")
+                            || t.move_to.as_deref().is_some_and(|n| {
+                                f.path.eq_ignore_ascii_case(n) || f.name.eq_ignore_ascii_case(n)
+                            })
+                    })
+            })
+            .map(|f| f.id)
+            .collect())
     }
 
     /// Only when they've asked for it, after seeing what it matches.
@@ -748,14 +976,30 @@ impl Engine {
                 self.ai_filter_recent(&account, &rule).await?
             } else {
                 self.store
-                    .rule_mail_existing(account.id, i64::MAX)?
+                    .rule_mail_existing(account.id, i64::MAX, rule.when.needs_body())?
                     .into_iter()
                     .filter(|m| rule.when.matches(m))
                     .collect()
             };
-            let chosen: Vec<&RuleMail> = chosen.iter().collect();
             done += chosen.len();
-            self.rule_act(&account, &rule.then, &chosen).await?;
+            // Each email gets what the filter would have done to it by now: its later steps
+            // too, once the email is that old.
+            let now = unix_now();
+            let mut plans: Vec<(RuleThen, Vec<&RuleMail>)> = Vec::new();
+            for m in &chosen {
+                let then = rule
+                    .later
+                    .iter()
+                    .filter(|s| m.date <= now - s.after)
+                    .fold(rule.then.clone(), |then, s| then.and_then(&s.then));
+                match plans.iter_mut().find(|(t, _)| *t == then) {
+                    Some((_, list)) => list.push(m),
+                    None => plans.push((then, vec![m])),
+                }
+            }
+            for (then, mail) in &plans {
+                self.rule_act(&account, then, mail).await?;
+            }
         }
         Ok(json!({ "done": done }))
     }
@@ -775,7 +1019,7 @@ impl Engine {
             }
             looked += self
                 .store
-                .rule_mail_existing(account.id, AI_FILTER_RECENT)?
+                .rule_mail_existing(account.id, AI_FILTER_RECENT, true)?
                 .len();
             for m in self.ai_filter_recent(&account, rule).await? {
                 if let Ok(d) = self.store.message_detail(m.id) {
@@ -797,7 +1041,7 @@ impl Engine {
         let key = self.ai_key_for("ai_rules")?;
         let recent = self
             .store
-            .rule_mail_existing(account.id, AI_FILTER_RECENT)?;
+            .rule_mail_existing(account.id, AI_FILTER_RECENT, true)?;
         let refs: Vec<&RuleMail> = recent.iter().collect();
         let hits = self.ai_filter_hits(&key, &[rule], &refs).await?;
         Ok(recent

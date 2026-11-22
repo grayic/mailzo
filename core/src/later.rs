@@ -635,6 +635,11 @@ impl Engine {
         if let Ok(v) = self.helper_tick(false).await {
             changed |= v["changed"].as_bool().unwrap_or(false);
         }
+        // Filters that wait act once their time is up.
+        match self.run_waiting_rules(now).await {
+            Ok(n) => changed |= n > 0,
+            Err(e) => tracing::debug!("waiting filters: {e}"),
+        }
         // Follow-ups: stopped by a reply, otherwise sent when due.
         match self.sequences_tick(now).await {
             Ok(n) if n > 0 => {

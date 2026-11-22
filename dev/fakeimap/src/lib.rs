@@ -76,6 +76,8 @@ pub struct ServerState {
     pub login_refusal: Option<String>,
     /// A slow server: read and star changes are made and answered only after this long.
     pub store_wait: Option<std::time::Duration>,
+    /// A folder whose read and star marks can't be changed, as on some shared folders.
+    pub refuse_store_in: Option<String>,
 }
 
 /// Handle used by tests and the demo to change the mailbox while it is served.
@@ -295,6 +297,8 @@ async fn serve(sock: TcpStream, state: Arc<Mutex<ServerState>>) -> std::io::Resu
                 .write_all(format!("* BYE bye\r\n{tag} OK done\r\n").as_bytes())
                 .await?;
             return Ok(());
+        } else if let (true, Some(why)) = (upper.starts_with("LOGIN "), refusal.as_ref()) {
+            format!("{tag} NO {why}\r\n").into_bytes()
         } else if upper.starts_with("LOGIN ") {
             let args = parse_strings(&rest[6..]);
             let mut s = state.lock().unwrap();
@@ -305,10 +309,7 @@ async fn serve(sock: TcpStream, state: Arc<Mutex<ServerState>>) -> std::io::Resu
             } else {
                 format!("{tag} NO [AUTHENTICATIONFAILED] Invalid credentials\r\n").into_bytes()
             }
-        } else if let (true, Some(why)) = (
-            upper == "AUTHENTICATE XOAUTH2" || upper.starts_with("LOGIN "),
-            refusal,
-        ) {
+        } else if let (true, Some(why)) = (upper == "AUTHENTICATE XOAUTH2", refusal) {
             if upper == "AUTHENTICATE XOAUTH2" {
                 write.write_all(b"+ \r\n").await?;
                 lines.next_line().await?;
@@ -514,6 +515,12 @@ async fn serve(sock: TcpStream, state: Arc<Mutex<ServerState>>) -> std::io::Resu
                 None => format!("{tag} BAD nothing selected\r\n").into_bytes(),
                 Some((_, true)) => {
                     format!("{tag} NO [READ-ONLY] folder is read-only\r\n").into_bytes()
+                }
+                Some((name, false))
+                    if upper.starts_with("UID STORE ")
+                        && state.lock().unwrap().refuse_store_in.as_deref() == Some(name) =>
+                {
+                    format!("{tag} NO [NOPERM] flags can't be changed here\r\n").into_bytes()
                 }
                 Some((name, false)) => {
                     let mut s = state.lock().unwrap();

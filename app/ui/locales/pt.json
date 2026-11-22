@@ -1852,5 +1852,11 @@
  "Your profile, devices and sign-out.": "Seu perfil, dispositivos e sair.",
  "Settings › Connect › Connect my own server": "Ajustes › Conectar › Conectar meu próprio servidor",
  "On your server, open Settings › Connect and make a pairing code.": "No servidor, abra Ajustes › Conectar e crie um código de pareamento.",
- "With a key, people can send you email only you can read. It's kept locked on your server, and only the public half is shared. A key made here isn't on your Mac: to read encrypted email in both, import the same key in each.": "Com uma chave, as pessoas podem enviar e-mails que só você consegue ler. Ela fica guardada trancada no seu servidor, e só a parte pública é compartilhada. Uma chave criada aqui não está no seu Mac: para ler e-mails criptografados nos dois, importe a mesma chave em cada um."
+ "With a key, people can send you email only you can read. It's kept locked on your server, and only the public half is shared. A key made here isn't on your Mac: to read encrypted email in both, import the same key in each.": "Com uma chave, as pessoas podem enviar e-mails que só você consegue ler. Ela fica guardada trancada no seu servidor, e só a parte pública é compartilhada. Uma chave criada aqui não está no seu Mac: para ler e-mails criptografados nos dois, importe a mesma chave em cada um.",
+ "Filter messages like this": "Filtrar mensagens como esta",
+ "When": "Quando",
+ "Right away": "Imediatamente",
+ "After 1 hour": "Após 1 hora",
+ "After 1 week": "Após 1 semana",
+ "After 30 days": "Após 30 dias"
 }

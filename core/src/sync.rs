@@ -79,6 +79,7 @@ pub async fn sync_account(
     reach: crate::net::Reach,
 ) -> Result<SyncStats> {
     let mut stats = SyncStats::default();
+    store.expire_pending_seen()?;
     let mut conn = ImapConnection::connect(account, password, reach).await?;
 
     let remote = with_chosen_roles(conn.folders().await?, account);
@@ -477,8 +478,15 @@ async fn sync_folder(
     ring: &Ring<'_>,
     stats: &mut SyncStats,
 ) -> Result<()> {
-    let mailbox = conn.open_folder(path).await?;
     let (saved_validity, mut last_uid) = store.folder_state(folder_id)?;
+    // Reading in a shared inbox is each person's own business.
+    let shared = store.account(account_id)?.prefs.team_shared;
+    // Read marks that didn't reach the server last time go first, so what it says next
+    // already has them. A connection that's gone shows up again just below.
+    if !shared {
+        let _ = send_pending_seen(conn, store, folder_id, path, saved_validity).await;
+    }
+    let mailbox = conn.open_folder(path).await?;
 
     // A new UIDVALIDITY means the server renumbered the folder.
     let renumbered = saved_validity.is_some() && saved_validity != mailbox.uid_validity;
@@ -513,8 +521,7 @@ async fn sync_folder(
         if !on_server.is_empty() {
             stats.removed_messages += store.remove_gone(folder_id, &on_server, last_uid)?;
         }
-        // Reading in a shared inbox is each person's own business.
-        let keep_read = store.account(account_id)?.prefs.team_shared;
+        let keep_read = shared;
         match (
             saved_modseq.filter(|_| !compare_all),
             mailbox.highest_modseq,
@@ -593,6 +600,70 @@ async fn sync_folder(
     while store.copy_twin_bodies(folder_id, 500)? > 0 {}
     let wanted = store.bodies_wanted(folder_id, since, opts.body_max_bytes, budget)?;
     fetch_bodies(conn, store, folder_id, &wanted, None, ring, stats).await?;
+    Ok(())
+}
+
+/// Sends the read marks still waiting for this folder. One the server turns down is let go,
+/// so its word counts again; one that meets a passing problem waits for the next refresh.
+async fn send_pending_seen(
+    conn: &mut ImapConnection,
+    store: &Store,
+    folder_id: i64,
+    path: &str,
+    saved_validity: Option<u32>,
+) -> Result<()> {
+    let pending = store.pending_seen_in(folder_id)?;
+    if pending.is_empty() {
+        return Ok(());
+    }
+    let sent = async {
+        let mailbox = conn.select_folder(path).await?;
+        // Renumbered: these numbers mean other mail now.
+        if saved_validity.is_none() || mailbox.uid_validity != saved_validity {
+            return Err(CoreError::Invalid("renumbered".into()));
+        }
+        send_marks(conn, store, folder_id, &pending).await?;
+        // Changed here while that was on its way, and that change may have reached the
+        // server first: what this Mac shows now goes once more, so the two agree.
+        let uids: Vec<u32> = pending.iter().map(|(uid, _)| *uid).collect();
+        let changed: Vec<(u32, bool)> = store
+            .local_seen(folder_id, &uids)?
+            .into_iter()
+            .filter(|now| !pending.contains(now))
+            .collect();
+        send_marks(conn, store, folder_id, &changed).await
+    }
+    .await;
+    match sent {
+        Err(e) if !crate::actions::passes(&e) => store.drop_pending_seen(folder_id),
+        other => other,
+    }
+}
+
+async fn send_marks(
+    conn: &mut ImapConnection,
+    store: &Store,
+    folder_id: i64,
+    marks: &[(u32, bool)],
+) -> Result<()> {
+    for seen in [true, false] {
+        let uids: Vec<u32> = marks
+            .iter()
+            .filter(|(_, s)| *s == seen)
+            .map(|(uid, _)| *uid)
+            .collect();
+        if uids.is_empty() {
+            continue;
+        }
+        let query = if seen {
+            "+FLAGS.SILENT (\\Seen)"
+        } else {
+            "-FLAGS.SILENT (\\Seen)"
+        };
+        conn.store_flags(&uids, query).await?;
+        let sent: Vec<(i64, u32)> = uids.iter().map(|uid| (folder_id, *uid)).collect();
+        store.pending_seen_sent(&sent, seen)?;
+    }
     Ok(())
 }
 
