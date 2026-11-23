@@ -1858,5 +1858,13 @@
  "Right away": "すぐに",
  "After 1 hour": "1時間後",
  "After 1 week": "1週間後",
- "After 30 days": "30日後"
+ "After 30 days": "30日後",
+ "Unsubscribed": "配信停止済み",
+ "Blocked": "ブロック中",
+ "AI second opinion": "AIのセカンドオピニオン",
+ "Nothing right now": "今はありません",
+ "Learned from {0} spam and {1} good emails": "迷惑メール{0}件と通常メール{1}件から学習",
+ "Address to block": "ブロックするアドレス",
+ "Block": "ブロック",
+ "Their emails go straight to Spam.": "メールはそのまま迷惑メールに入ります。"
 }

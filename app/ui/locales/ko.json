@@ -1858,5 +1858,13 @@
  "Right away": "바로",
  "After 1 hour": "1시간 후",
  "After 1 week": "1주 후",
- "After 30 days": "30일 후"
+ "After 30 days": "30일 후",
+ "Unsubscribed": "구독 취소됨",
+ "Blocked": "차단됨",
+ "AI second opinion": "AI 2차 의견",
+ "Nothing right now": "지금은 없음",
+ "Learned from {0} spam and {1} good emails": "스팸 {0}개와 정상 메일 {1}개로 학습함",
+ "Address to block": "차단할 주소",
+ "Block": "차단",
+ "Their emails go straight to Spam.": "이 발신자의 메일은 바로 스팸으로 갑니다."
 }

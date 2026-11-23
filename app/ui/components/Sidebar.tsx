@@ -20,6 +20,7 @@ import {
   SidebarLeftIcon,
   SpamIcon,
   Tick02Icon,
+  UserGroupIcon,
   ViewIcon,
   ViewOffSlashIcon,
 } from "../icons";
@@ -121,6 +122,15 @@ function AccountSwitcher({
         >
           <Avatar name={selected?.email ?? "?"} size="xs" hue={selected?.prefs.color ?? undefined} />
           <span className="switcher-name truncate-1">{selected?.prefs.label || selected?.email}</span>
+          {selected?.prefs.team_shared && (
+            <span
+              className="switcher-team"
+              data-tip={teamNames[selected.prefs.team_id ?? 0] || tx("Team inbox")}
+              aria-label={tx("Team inbox")}
+            >
+              <Icon icon={UserGroupIcon} size="xs" />
+            </span>
+          )}
           <Icon icon={ArrowDown01Icon} size="xs" className="switcher-arrow" />
         </button>
       )}
@@ -135,6 +145,16 @@ function AccountSwitcher({
                 leading={<Avatar name={a.email} size="xs" hue={a.prefs.color ?? undefined} />}
                 trailing={
                   <>
+                    {/* Out here, so a long address can't cut it off. */}
+                    {a.prefs.team_shared && (
+                      <span
+                        className="pill pill-team"
+                        data-tip={teamNames[a.prefs.team_id ?? 0] || tx("Team inbox")}
+                        aria-label={tx("Team inbox")}
+                      >
+                        <Icon icon={UserGroupIcon} size="xs" />
+                      </span>
+                    )}
                     {unread > 0 && <span className="menu-count">{unread}</span>}
                     {selected?.id === a.id && <Icon icon={Tick02Icon} size="s" />}
                     {i < 8 && <span className="menu-key">{keys(`⌘${i + 2}`)}</span>}
@@ -146,7 +166,6 @@ function AccountSwitcher({
                 }}
               >
                 {a.prefs.label || a.email}
-                {a.prefs.team_shared && <span className="pill">{teamNames[a.prefs.team_id ?? 0] || "team"}</span>}
               </MenuItem>
             );
           })}

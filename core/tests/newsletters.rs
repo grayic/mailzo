@@ -283,6 +283,23 @@ async fn leaving_by_email_sends_only_what_the_list_may_ask_for_and_is_remembered
     let row = r.row("news@list.test").await;
     assert_eq!(row["left"]["how"], "sent");
     assert!(row["left"]["at"].as_i64().unwrap() > 0);
+
+    // Their email says so, so Unsubscribe isn't offered on it again.
+    let threads = r
+        .engine
+        .call("list_all", json!({ "role": "inbox", "limit": 10 }))
+        .await
+        .unwrap();
+    let t = &threads[0];
+    let thread = r
+        .engine
+        .call(
+            "get_thread",
+            json!({ "account_id": t["account_id"], "thread_id": t["thread_id"], "folder_id": t["folder_id"] }),
+        )
+        .await
+        .unwrap();
+    assert_eq!(thread[0]["unsubscribed"], true);
 }
 
 #[tokio::test]

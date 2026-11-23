@@ -3787,6 +3787,32 @@ impl Store {
         Ok(())
     }
 
+    /// Marks a sender's mail already in the inbox with `score`, ready to move again, and
+    /// says which inboxes had some.
+    pub fn mark_inbox_mail_from(
+        &self,
+        address: &str,
+        score: i64,
+        reasons: &[crate::spam::Reason],
+    ) -> Result<Vec<i64>> {
+        let db = self.db();
+        db.execute(
+            "INSERT INTO verdicts (message_key, score, risk, reasons_json, auto_moved)
+             SELECT DISTINCT m.message_key, ?2, 2, ?3, 0 FROM messages m
+             JOIN folders f ON f.id = m.folder_id
+             WHERE f.role = 'inbox' AND lower(m.from_addr) = ?1
+             ON CONFLICT (message_key) DO UPDATE SET score = ?2, risk = 2, reasons_json = ?3,
+               auto_moved = 0",
+            params![address, score, json(&reasons)],
+        )?;
+        let mut st = db.prepare(
+            "SELECT DISTINCT m.account_id FROM messages m JOIN folders f ON f.id = m.folder_id
+             WHERE f.role = 'inbox' AND lower(m.from_addr) = ?1",
+        )?;
+        let rows = st.query_map([address], |r| r.get(0))?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
     pub fn has_verdict(&self, key: &str) -> Result<bool> {
         Ok(self
             .db()
@@ -4863,7 +4889,8 @@ const MESSAGE_COLUMNS: &str = concat!(
      m.account_id, m.thread_id, m.reply_to_json, m.bcc_json,
     COALESCE(v.risk, 0), COALESCE(v.reasons_json, '[]'), ",
     crate::newsletters::can_unsubscribe!(),
-    ", m.due_at, b.pgp_json"
+    ", m.due_at, b.pgp_json, ",
+    crate::newsletters::sender_left!()
 );
 
 const DRAFT_COLUMNS: &str =
@@ -4909,6 +4936,7 @@ fn row_to_detail(r: &Row<'_>) -> rusqlite::Result<MessageDetail> {
             .map(|x| x.text)
             .collect(),
         can_unsubscribe: r.get(21)?,
+        unsubscribed: r.get(24)?,
         due_at: r.get(22)?,
     })
 }

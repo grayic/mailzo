@@ -1256,6 +1256,7 @@ mod tests {
             risk: 0,
             warnings: vec![],
             can_unsubscribe: false,
+            unsubscribed: false,
             due_at: None,
         }
     }

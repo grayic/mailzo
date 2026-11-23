@@ -1972,9 +1972,10 @@ function Mail({
   };
 
   const unsubscribing = useRef(false);
-  const unsubscribe = async (m: Message) => {
+  /** True once it went through, not when only their page opened. */
+  const unsubscribe = async (m: Message): Promise<boolean> => {
     // It can send an email, so a second click mustn't send another.
-    if (unsubscribing.current) return;
+    if (unsubscribing.current) return false;
     unsubscribing.current = true;
     try {
       const reply = await api.unsubscribe(m.id);
@@ -1994,8 +1995,11 @@ function Mail({
             : tx("You're unsubscribed. It can take a few days to stop."),
         );
       }
+      // Only their page opened: the person may not finish there, so it isn't done yet.
+      return reply.kind === "done" || reply.kind === "sent";
     } catch (e) {
       setNotice(say(e));
+      return false;
     } finally {
       unsubscribing.current = false;
     }
@@ -3932,7 +3936,7 @@ function Mail({
             }
             onSpam={() => void markSpam(openThreadSummary(), true)}
             onNotSpam={() => void markSpam(openThreadSummary(), false)}
-            onUnsubscribe={(m) => void unsubscribe(m)}
+            onUnsubscribe={unsubscribe}
             unread={(openSummary?.unread_count ?? 0) > 0}
             replyMode={settings.reply_default === "reply_all" ? "reply_all" : "reply"}
             onMarkRead={() => open && markThreadRead(open)}

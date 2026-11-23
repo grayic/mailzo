@@ -17,6 +17,7 @@ import {
   Search01Icon,
   Settings02Icon,
   SpamIcon,
+  UserBlock01Icon,
   Shield01Icon,
   UserGroupIcon,
   KeyboardIcon,
@@ -49,7 +50,7 @@ import { ConnectionsPage } from "./ConnectionsPage";
 import { HealthPage } from "./HealthPage";
 import { InboxPage } from "./InboxPage";
 import { RulesPage } from "./RulesPage";
-import { SpamPage } from "./SpamPage";
+import { BlockedPage, SpamPage } from "./SpamPage";
 import { TeamPage } from "./TeamPage";
 import { tx } from "../../i18n";
 
@@ -72,6 +73,7 @@ const PAGE_GROUPS: [string, [string, string, IconSvgElement][]][] = [
       ["follow_ups", tx("Follow-ups"), SentIcon],
       ["rules", tx("Filters"), FilterHorizontalIcon],
       ["spam", tx("Spam"), SpamIcon],
+      ["blocked", tx("Blocked"), UserBlock01Icon],
     ],
   ],
   [
@@ -122,7 +124,8 @@ const SETTINGS_ON: Record<string, string[]> = {
     tx("Keep drafts on your mail server too"),
     tx("The main Reply action"),
   ],
-  spam: [tx("Sort the inbox into tabs"), tx("Blocked senders"), tx("Trusted senders"), tx("What it has learned"), tx("When an email looks like spam")],
+  spam: [tx("Sort the inbox into tabs"), tx("Trusted senders"), tx("Always on a tab"), tx("AI second opinion"), tx("When an email looks like spam")],
+  blocked: [tx("Blocked senders"), tx("Block")],
   privacy: [
     tx("Pictures inside emails"),
     tx("Show sender pictures and logos"),
@@ -425,6 +428,7 @@ export function SettingsWindow({
         {page === "notifications" && <NotificationsPage />}
         {page === "privacy" && <PrivacyPage />}
         {page === "spam" && <SpamPage onChanged={onFiltersChanged} />}
+        {page === "blocked" && <BlockedPage onChanged={onFiltersChanged} />}
         {page === "rules" && <RulesPage accounts={accounts} foldersBy={foldersBy} />}
         {page === "mail" && <HealthPage />}
         {page === "connections" && <ConnectionsPage onSeeActivity={() => go("activity")} />}

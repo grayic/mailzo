@@ -524,6 +524,7 @@ export function MessageCard({
   onSpam,
   onNotSpam,
   onUnsubscribe,
+  unsubscribed: leftHere,
   onShowOriginal,
   find = "",
   translated,
@@ -540,8 +541,10 @@ export function MessageCard({
   inJunk: boolean;
   onSpam: () => void;
   onNotSpam: () => void;
-  /** Left out where unsubscribing isn't offered. */
-  onUnsubscribe?: (message: Message) => void;
+  /** Left out where unsubscribing isn't offered. True once it went through. */
+  onUnsubscribe?: (message: Message) => Promise<boolean>;
+  /** Its sender was left, here or before. */
+  unsubscribed?: boolean;
   message: Message;
   startOpen: boolean;
   showPicture: boolean;
@@ -571,6 +574,7 @@ export function MessageCard({
     if (!trustedSender) setShowOnce(false);
   }, [trustedSender]);
   const [leaving, setLeaving] = useState(false);
+  const unsubscribed = leftHere ?? message.unsubscribed;
   const [showQuoted, setShowQuoted] = useState(false);
 
   useEffect(() => {
@@ -629,7 +633,7 @@ export function MessageCard({
           onKeep={() => setLeaving(false)}
           onConfirm={() => {
             setLeaving(false);
-            onUnsubscribe?.(message);
+            void onUnsubscribe?.(message);
           }}
         >
           {tx("This tells the sender to stop emailing this address.")}</Confirm>
@@ -647,7 +651,10 @@ export function MessageCard({
               </span>
             )}
             {/* The same rule as Newsletters: not for suspect mail, Junk, Trash or your own. */}
-            {onUnsubscribe && message.can_unsubscribe && (
+            {onUnsubscribe && message.can_unsubscribe && unsubscribed && (
+              <span className="card-unsubscribe muted">{tx("Unsubscribed")}</span>
+            )}
+            {onUnsubscribe && message.can_unsubscribe && !unsubscribed && (
               <button
                 type="button"
                 className="link-btn card-unsubscribe"
@@ -926,13 +933,20 @@ export function Reader({
   team?: { thread: TeamThreadRef; tick: number; replying: boolean; onChanged: () => void } | null;
   onSpam: () => void;
   onNotSpam: () => void;
-  onUnsubscribe: (message: Message) => void;
+  onUnsubscribe: (message: Message) => Promise<boolean>;
   /** The allowed senders can change in Settings. */
   settingsOpen: boolean;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [askingSpam, setAskingSpam] = useState(false);
   const [original, setOriginal] = useState<Message | null>(null);
+  // Senders just left from here, so every one of their emails says so, not only the one pressed.
+  const [justLeft, setJustLeft] = useState<string[]>([]);
+  const leave = async (m: Message) => {
+    const ok = await onUnsubscribe(m);
+    if (ok) setJustLeft((was) => [...was, m.from.address.toLowerCase()]);
+    return ok;
+  };
   const [trusted, setTrusted] = useState<string[]>(knownTrusted);
   const [picking, setPicking] = useState<"snooze" | "follow" | null>(null);
   // A long conversation opens on its newest email, or the first one not read yet, with the
@@ -1595,7 +1609,8 @@ export function Reader({
             inJunk={folder?.role === "junk"}
             onSpam={onSpam}
             onNotSpam={onNotSpam}
-            onUnsubscribe={onUnsubscribe}
+            onUnsubscribe={leave}
+            unsubscribed={m.unsubscribed || justLeft.includes(m.from.address.toLowerCase())}
             onShowOriginal={setOriginal}
             find={wanted}
             translated={translated?.id === m.id ? translated.text : undefined}

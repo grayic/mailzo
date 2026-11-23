@@ -4,6 +4,6 @@ members = ["core", "dev/fakeimap", "dev/fakegoogle", "dev/fakeai", "dev/fakeoaut
 
 [workspace.package]
 license = "AGPL-3.0-only"
-version = "1.2.1"
+version = "1.2.2"
 edition = "2021"
 publish = false

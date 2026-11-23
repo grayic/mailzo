@@ -3192,6 +3192,20 @@ textarea.input.template-body {
   min-width: 0;
 }
 
+/* A team inbox, said with a mark beside its name. */
+.switcher-team {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--accent-text);
+}
+
+/* In the inbox menu: a team inbox's people mark, so a long address still fits. */
+.pill-team {
+  flex-shrink: 0;
+  margin-left: 0;
+  padding: 0 var(--s-2);
+}
+
 .switcher-menu {
   width: var(--w-switcher-menu);
 }

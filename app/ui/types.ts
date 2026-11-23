@@ -243,6 +243,8 @@ export interface Message {
   risk: number;
   warnings: string[];
   can_unsubscribe: boolean;
+  /** This inbox already unsubscribed from its sender. */
+  unsubscribed: boolean;
   /** The day it asks for something by, found in its words (the start of that day, UTC). */
   due_at: number | null;
 }

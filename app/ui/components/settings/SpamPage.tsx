@@ -60,15 +60,8 @@ export function SpamPage({ onChanged }: { onChanged: () => void }) {
   const examples = report?.examples;
 
   return (
-    <Page title={tx("Spam and sorting")} intro={tx("Worked out on your device. Nothing is deleted.")}>
-      <Section
-        title={tx("Spam")}
-        note={
-          moving
-            ? tx("Spam moves to your Spam folder, and each email says why. \"Not spam\" brings it back.")
-            : tx("Trial mode: nothing moved yet. Check the list, then turn on moving.")
-        }
-      >
+    <Page title={tx("Spam")}>
+      <Section>
         <Row label={tx("When an email looks like spam")}>
           <Segmented
             label={tx("When an email looks like spam")}
@@ -85,16 +78,15 @@ export function SpamPage({ onChanged }: { onChanged: () => void }) {
         </Row>
         <SettingToggle
           setting="ai_spam"
-          label={tx("Spam second opinion")}
-          help={paid ? tx("AI takes a look at emails the filter is unsure about.") : tx("Included with Mailzo Cloud")}
+          label={tx("AI second opinion")}
+          help={paid ? undefined : tx("Included with Mailzo Cloud")}
           disabled={!paid}
         />
+        <SettingToggle setting="smart_tabs" label={tx("Sort the inbox into tabs")} />
       </Section>
 
       <Section title={moving ? tx("Waiting to move") : tx("What it would move")}>
-        {report && waiting.length === 0 && (
-          <Row label={tx("Nothing")} help={tx("Nothing in your inbox looks like spam right now.")} />
-        )}
+        {report && waiting.length === 0 && <Row label={tx("Nothing right now")} />}
         {waiting.map((row) => (
           <div key={row.thread_id} className="group-row" data-would-move={row.subject}>
             <Avatar name={row.from_name || row.from_address} size="s" />
@@ -113,39 +105,8 @@ export function SpamPage({ onChanged }: { onChanged: () => void }) {
         ))}
       </Section>
 
-      {examples && (
-        <Section title={tx("What it has learned")}>
-          <Row
-            label={tx("{0} spam and {1} good examples", { "0": examples.spam, "1": examples.good })}
-            help={
-              examples.spam < examples.needed || examples.good < examples.needed
-                ? tx("The learning part starts once it has {0} of each. It learns from your Spam folder, your \"Spam\" and \"Not spam\" choices, and people you write to.", { "0": examples.needed })
-                : tx("It learns from your Spam folder, your \"Spam\" and \"Not spam\" choices, and people you write to.")
-            }
-          />
-        </Section>
-      )}
-
-      <Section title={tx("Sorting")} note={tx("Tabs only change the view here. Nothing moves on your server.")}>
-        <SettingToggle
-          setting="smart_tabs"
-          label={tx("Sort the inbox into tabs")}
-          help={tx("Needs you, Good to know, The rest, and All.")}
-        />
-      </Section>
-
-      <Section title={tx("Blocked senders")}>
-        {lists?.blocked.length === 0 && <Row label={tx("None")} help={tx("Right-click an email to block its sender.")} />}
-        {lists?.blocked.map((address) => (
-          <Row key={address} label={address}>
-            <button className="btn btn-ghost btn-sm" onClick={() => void unlist(address, "blocked")}>
-              {tx("Unblock")}</button>
-          </Row>
-        ))}
-      </Section>
-
       <Section title={tx("Trusted senders")}>
-        {lists?.trusted.length === 0 && <Row label={tx("None")} help={tx("Choosing \"Not spam\" on an email adds its sender here.")} />}
+        {lists?.trusted.length === 0 && <Row label={tx("None")} />}
         {lists?.trusted.map((address) => (
           <Row key={address} label={address}>
             <button className="btn btn-ghost btn-sm" onClick={() => void unlist(address, "trusted")}>
@@ -155,9 +116,7 @@ export function SpamPage({ onChanged }: { onChanged: () => void }) {
       </Section>
 
       <Section title={tx("Always on a tab")}>
-        {lists && Object.keys(lists.sorted).length === 0 && (
-          <Row label={tx("None")} help={tx("Right-click an email to always put its sender on a tab.")} />
-        )}
+        {lists && Object.keys(lists.sorted).length === 0 && <Row label={tx("None")} />}
         {lists &&
           Object.entries(lists.sorted).map(([address, tab]) => (
             <Row key={address} label={address} help={TAB_NAMES[tab] ?? tab}>
@@ -166,7 +125,94 @@ export function SpamPage({ onChanged }: { onChanged: () => void }) {
             </Row>
           ))}
       </Section>
+      {examples && (
+        <p className="fine note">
+          {tx("Learned from {0} spam and {1} good emails", {
+            "0": examples.spam.toLocaleString(),
+            "1": examples.good.toLocaleString(),
+          })}
+        </p>
+      )}
       <Problem text={error ?? (report?.ai_problem ? tx("The AI didn't help this time: {0}", { "0": report.ai_problem }) : null)} />
+    </Page>
+  );
+}
+
+/** Senders blocked by hand: a list, and a box to add one by typing it. */
+export function BlockedPage({ onChanged }: { onChanged: () => void }) {
+  const [blocked, setBlocked] = useState<string[] | null>(null);
+  const [address, setAddress] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    api
+      .spamLists()
+      .then((l) => setBlocked(l.blocked))
+      .catch((e) => setError(say(e)));
+  }, []);
+
+  const block = async () => {
+    if (!address.trim() || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      setBlocked((await api.spamBlock(address)).blocked);
+      setAddress("");
+      onChanged();
+    } catch (e) {
+      setError(say(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const unblock = async (who: string) => {
+    setError(null);
+    try {
+      setBlocked((await api.spamUnlist(who, "blocked")).blocked);
+      onChanged();
+    } catch (e) {
+      setError(say(e));
+    }
+  };
+
+  return (
+    <Page title={tx("Blocked")}>
+      <form
+        className="hstack"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void block();
+        }}
+      >
+        <input
+          className="input grow"
+          type="email"
+          aria-label={tx("Address to block")}
+          placeholder="name@company.com"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+        />
+        <button className="btn btn-secondary" disabled={busy}>
+          {tx("Block")}</button>
+      </form>
+      <Section
+        title={tx("Blocked senders")}
+        note={tx("Their emails go straight to Spam.")}
+      >
+        {blocked?.length === 0 && <Row label={tx("None")} />}
+        {blocked?.map((who) => (
+          <Row key={who} label={who}>
+            <button className="btn btn-ghost btn-sm" onClick={() => void unblock(who)}>
+              {tx("Unblock")}</button>
+          </Row>
+        ))}
+      </Section>
+      <Problem text={error} />
     </Page>
   );
 }

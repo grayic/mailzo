@@ -809,6 +809,11 @@ struct SpamClearArg {
 }
 
 #[derive(Deserialize)]
+struct BlockArg {
+    address: String,
+}
+
+#[derive(Deserialize)]
 struct UnlistArg {
     address: String,
     kind: String,
@@ -2170,6 +2175,10 @@ impl Engine {
             "spam_unlist" => {
                 let a: UnlistArg = from_json(args)?;
                 self.spam_unlist(&a.address, &a.kind).await
+            }
+            "spam_block" => {
+                let a: BlockArg = from_json(args)?;
+                self.spam_block(&a.address).await
             }
             "spam_report" => self.spam_report(),
             "sort_sender" => {

@@ -632,6 +632,8 @@ async fn blocking_works_even_during_the_trial_and_can_be_undone() {
         json!({ "address": "pest@x.test", "kind": "blocked" }),
     )
     .await;
+    assert_eq!(r.call("spam_lists", json!({})).await["blocked"], json!([]));
+
     r.imap.add_message(
         "INBOX",
         &mail("Pest <pest@x.test>", "3@x", "Third", "", "Hello once more"),
@@ -640,6 +642,19 @@ async fn blocking_works_even_during_the_trial_and_can_be_undone() {
     r.sync().await;
     r.sync().await;
     assert_eq!(r.subjects("inbox", None).await, ["Old", "Third"]);
+
+    // Blocking by typing the address works the same, and takes what they already sent
+    // out of the inbox too. A typo is turned away.
+    let lists = r
+        .call("spam_block", json!({ "address": " <Pest@X.test> " }))
+        .await;
+    assert_eq!(lists["blocked"], json!(["pest@x.test"]));
+    assert_eq!(r.subjects("inbox", None).await, ["Old"]);
+    let typo = r
+        .engine
+        .call("spam_block", json!({ "address": "pest at x" }))
+        .await;
+    assert!(typo.unwrap_err().to_string().contains("email address"));
 }
 
 #[tokio::test]
@@ -921,6 +936,8 @@ async fn unsubscribing_opens_their_page_and_never_for_suspect_mail() {
         .await;
     assert_eq!(reply["kind"], "opened");
     assert_eq!(*r.opened.lock().unwrap(), ["https://shop.test/u?x=1"]);
+    // Only their page opened, which the person may not finish, so it isn't called done.
+    assert_eq!(r.message("inbox", "Web").await["unsubscribed"], false);
 
     let suspect = r.message("inbox", "Suspect").await;
     let refused = r

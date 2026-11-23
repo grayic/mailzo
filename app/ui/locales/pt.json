@@ -1858,5 +1858,13 @@
  "Right away": "Imediatamente",
  "After 1 hour": "Após 1 hora",
  "After 1 week": "Após 1 semana",
- "After 30 days": "Após 30 dias"
+ "After 30 days": "Após 30 dias",
+ "Unsubscribed": "Inscrição cancelada",
+ "Blocked": "Bloqueados",
+ "AI second opinion": "Segunda opinião da IA",
+ "Nothing right now": "Nada no momento",
+ "Learned from {0} spam and {1} good emails": "Aprendeu com {0} spams e {1} e-mails bons",
+ "Address to block": "Endereço a bloquear",
+ "Block": "Bloquear",
+ "Their emails go straight to Spam.": "Os e-mails vão direto para o Spam."
 }

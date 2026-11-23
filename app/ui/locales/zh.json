@@ -1858,5 +1858,13 @@
  "Right away": "立即",
  "After 1 hour": "1 小时后",
  "After 1 week": "1 周后",
- "After 30 days": "30 天后"
+ "After 30 days": "30 天后",
+ "Unsubscribed": "已退订",
+ "Blocked": "已屏蔽",
+ "AI second opinion": "AI 二次判断",
+ "Nothing right now": "暂时没有",
+ "Learned from {0} spam and {1} good emails": "已从 {0} 封垃圾邮件和 {1} 封正常邮件中学习",
+ "Address to block": "要屏蔽的地址",
+ "Block": "屏蔽",
+ "Their emails go straight to Spam.": "他们的邮件会直接进入垃圾邮件。"
 }

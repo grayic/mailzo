@@ -344,6 +344,8 @@ pub struct MessageDetail {
     /// Why, in words to show the person.
     pub warnings: Vec<String>,
     pub can_unsubscribe: bool,
+    /// This inbox already unsubscribed from its sender.
+    pub unsubscribed: bool,
     /// The date it asks for something by, found in its words, if any.
     pub due_at: Option<i64>,
 }

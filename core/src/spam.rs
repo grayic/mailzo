@@ -1549,6 +1549,53 @@ impl Engine {
         Ok(json!({ "blocked": list(BLOCKED), "trusted": list(TRUSTED), "sorted": sorted }))
     }
 
+    /// Blocks an address typed in by hand: what they send from now on is treated as spam.
+    pub(crate) async fn spam_block(&self, address: &str) -> Result<Value> {
+        let address = address.trim().trim_matches(['<', '>']).to_lowercase();
+        let looks_right = address.split_once('@').is_some_and(|(name, domain)| {
+            !name.is_empty()
+                && domain.contains('.')
+                && !domain.starts_with('.')
+                && !domain.ends_with('.')
+        }) && !address
+            .chars()
+            .any(|c| c.is_whitespace() || c == ',' || c == ';');
+        if !looks_right {
+            return Err(CoreError::Invalid(
+                "That doesn't look like an email address.".into(),
+            ));
+        }
+        let mine = self.store.list_accounts()?.iter().any(|a| {
+            a.email.eq_ignore_ascii_case(&address)
+                || a.prefs
+                    .aliases
+                    .iter()
+                    .any(|x| x.address.eq_ignore_ascii_case(&address))
+        });
+        if mine {
+            return Err(CoreError::Invalid(
+                "That's one of your own addresses.".into(),
+            ));
+        }
+        self.store.delete_setting(&format!("{TRUSTED}{address}"))?;
+        self.store
+            .set_setting(&format!("{BLOCKED}{address}"), "on")?;
+        // What they already sent goes the same way as anything new from them.
+        let reasons = [Reason {
+            text: "You blocked this sender.".into(),
+            scam: false,
+        }];
+        for account_id in self
+            .store
+            .mark_inbox_mail_from(&address, BLOCKED_SCORE, &reasons)?
+        {
+            let account = self.store.account(account_id)?;
+            self.move_spam(&account).await?;
+        }
+        self.filter_changed().await?;
+        self.spam_lists()
+    }
+
     pub(crate) async fn spam_unlist(&self, address: &str, kind: &str) -> Result<Value> {
         let prefix = match kind {
             "blocked" => BLOCKED,

@@ -11,7 +11,28 @@ use serde_json::json;
 use std::collections::HashMap;
 
 /// Followed by the inbox's address, a space, and the sender's. Each inbox subscribes on its own.
-pub(crate) const UNSUBSCRIBED: &str = "unsub:";
+macro_rules! unsubscribed_prefix {
+    () => {
+        "unsub:"
+    };
+}
+pub(crate) const UNSUBSCRIBED: &str = unsubscribed_prefix!();
+
+/// Whether email `m` comes from a sender this inbox has really left: the unsubscribe went
+/// through or its email was sent. Only opening their page doesn't count, as the person may not
+/// have finished there.
+macro_rules! sender_left {
+    () => {
+        concat!(
+            "EXISTS (SELECT 1 FROM settings s, accounts a WHERE a.id = m.account_id
+               AND s.key = '",
+            $crate::newsletters::unsubscribed_prefix!(),
+            "' || lower(a.email) || ' ' || lower(m.from_addr)
+               AND json_extract(s.value, '$.how') IN ('done', 'sent'))"
+        )
+    };
+}
+pub(crate) use {sender_left, unsubscribed_prefix};
 
 /// Senders get this long to act on an unsubscribe before they're called out for ignoring it.
 const IGNORED_AFTER_SECONDS: i64 = 14 * 86_400;

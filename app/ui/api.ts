@@ -1019,6 +1019,7 @@ export const api = {
   spamMark: (threads: ThreadRef[], block = false) => call("spam_mark", { threads, block }),
   spamClear: (threads: ThreadRef[]) => call("spam_clear", { threads }),
   spamLists: () => call<SpamLists>("spam_lists"),
+  spamBlock: (address: string) => call<SpamLists>("spam_block", { address }),
   spamUnlist: (address: string, kind: "blocked" | "trusted" | "sorted") =>
     call<SpamLists>("spam_unlist", { address, kind }),
   spamReport: () => call<SpamReport>("spam_report"),
