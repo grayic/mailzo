@@ -855,6 +855,7 @@ pub fn read_body(raw: &[u8], ring: &Ring<'_>) -> Body {
             html: None,
             attachments: vec![],
             pgp: Some(info),
+            calendar: None,
         },
         None => open_inline(parse::parse_body(raw), ring, &from),
     }

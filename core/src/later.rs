@@ -164,7 +164,7 @@ impl Store {
     ) -> Result<bool> {
         let db = self.db();
         let mut st = db.prepare_cached(
-            "SELECT lower(m.from_addr) FROM messages m JOIN folders f ON f.id = m.folder_id
+            "SELECT lower(m.from_addr) FROM messages m INDEXED BY messages_thread JOIN folders f ON f.id = m.folder_id
              WHERE m.account_id = ?1 AND m.thread_id = ?2 AND m.date > ?3
                AND f.role NOT IN ('sent', 'drafts', 'trash', 'junk')",
         )?;
@@ -191,7 +191,7 @@ impl Store {
         let last: Option<String> = self
             .db()
             .query_row(
-                "SELECT lower(m.from_addr) FROM messages m JOIN folders f ON f.id = m.folder_id
+                "SELECT lower(m.from_addr) FROM messages m INDEXED BY messages_thread JOIN folders f ON f.id = m.folder_id
                  WHERE m.account_id = ?1 AND m.thread_id = ?2 AND m.date <= ?3
                    AND f.role NOT IN ('drafts', 'trash', 'junk')
                  ORDER BY m.date DESC LIMIT 1",
@@ -212,7 +212,7 @@ impl Store {
     ) -> Result<bool> {
         let db = self.db();
         let mut st = db.prepare_cached(
-            "SELECT lower(m.from_addr) FROM messages m JOIN folders f ON f.id = m.folder_id
+            "SELECT lower(m.from_addr) FROM messages m INDEXED BY messages_thread JOIN folders f ON f.id = m.folder_id
              WHERE m.account_id = ?1 AND m.thread_id = ?2 AND m.date > ?3
                AND f.role NOT IN ('drafts', 'trash', 'junk') AND m.is_draft = 0",
         )?;
@@ -312,15 +312,16 @@ impl Store {
     }
 
     pub fn later_counts(&self) -> Result<Value> {
-        let db = self.db();
+        // Only counts, and slow ones, so other work needn't wait for them.
+        let db = self.reading_db();
         let count = |sql: &str| -> Result<i64> { Ok(db.query_row(sql, [], |r| r.get(0))?) };
         Ok(json!({
             "snoozed": count(&format!("SELECT COUNT(*) FROM thread_marks k WHERE snooze_until IS NOT NULL {HAS_MAIL}"))?,
             "reminders": count(&format!("SELECT COUNT(*) FROM thread_marks k WHERE follow_at IS NOT NULL {HAS_MAIL}"))?,
             "muted": count(&format!("SELECT COUNT(*) FROM thread_marks k WHERE muted = 1 {HAS_MAIL}"))?,
             "screener": count(
-                "SELECT COUNT(DISTINCT lower(m.from_addr)) FROM messages m JOIN folders f ON f.id = m.folder_id
-                 WHERE m.screened = 1 AND f.role = 'inbox'"
+                "SELECT COUNT(DISTINCT lower(m.from_addr)) FROM messages m
+                 WHERE m.folder_id IN (SELECT id FROM folders WHERE role = 'inbox') AND m.screened = 1"
             )?,
         }))
     }

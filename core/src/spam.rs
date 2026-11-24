@@ -2028,6 +2028,7 @@ mod link_warning_tests {
                         html: Some(html),
                         attachments: Vec::new(),
                         pgp: None,
+                        calendar: None,
                     },
                 )
                 .unwrap();

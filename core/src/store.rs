@@ -785,6 +785,11 @@ const MIGRATIONS: &[&str] = &[
         PRIMARY KEY (folder_id, uid)
     );
 "#,
+    // Noted when the email is first read, so opening one needn't fetch it again from the
+    // server only to find out it isn't an invitation.
+    r#"
+    ALTER TABLE bodies ADD COLUMN calendar INTEGER;
+"#,
 ];
 
 const ACCOUNT_COLUMNS: &str =
@@ -795,7 +800,7 @@ const THREAD_WINDOW_SECONDS: i64 = 30 * 86_400;
 /// A reply comes after what it answers, give or take a mail server's clock.
 const CLOCK_SKEW_SECONDS: i64 = 3_600;
 
-const READERS: usize = 4;
+const READERS: usize = 6;
 /// How long a read mark the server has heard is still kept from a refresh: one that read the
 /// server just before it heard can land a moment later.
 const HELD_AFTER_HEARD: Duration = Duration::from_secs(60);
@@ -807,12 +812,52 @@ const PENDING_SEEN_SECONDS: i64 = 7 * 86_400;
 /// Unused pages, of 4 KB, before giving them back to the Mac is worth rewriting the file: 40 MB.
 const ROOM_WORTH_GIVING_BACK: i64 = 10_000;
 
+/// The writing connection, held. Holding it for long freezes every click that needs it.
+pub(crate) struct Held<'a> {
+    guard: MutexGuard<'a, Connection>,
+    from: &'static std::panic::Location<'static>,
+    asked: Instant,
+    got: Instant,
+}
+
+/// A hold this long is noted, so whatever made the app wait can be found.
+const LONG_HOLD: Duration = Duration::from_millis(250);
+
+impl std::ops::Deref for Held<'_> {
+    type Target = Connection;
+    fn deref(&self) -> &Connection {
+        &self.guard
+    }
+}
+
+impl std::ops::DerefMut for Held<'_> {
+    fn deref_mut(&mut self) -> &mut Connection {
+        &mut self.guard
+    }
+}
+
+impl Drop for Held<'_> {
+    fn drop(&mut self) {
+        let held = self.got.elapsed();
+        let waited = self.got - self.asked;
+        if held >= LONG_HOLD || waited >= LONG_HOLD {
+            eprintln!(
+                "[database] {}:{} waited {waited:.0?}, held {held:.0?}",
+                self.from.file(),
+                self.from.line()
+            );
+        }
+    }
+}
+
 pub struct Store {
     /// Shared, so giving room back to the Mac can carry on in its own thread.
     conn: Arc<Mutex<Connection>>,
     /// Let reads run at the same time as each other and as new mail being saved. With only the one
     /// connection, a search queues behind every other question the app is asking.
     readers: Vec<Mutex<Connection>>,
+    /// Which reader to wait for when all are busy, taken in turn so waits spread out.
+    next_reader: std::sync::atomic::AtomicUsize,
     /// Read marks changed here that a refresh mustn't put back, by folder and UID: one that read
     /// the server before it heard would. When each was changed or heard, and whether it's heard.
     seen_held: Mutex<HashMap<(i64, u32), (Instant, bool)>>,
@@ -1022,29 +1067,34 @@ fn page_keys_sql_from(
     let (key, belongs, group) = if grouped {
         let returned = if inbox {
             format!(
-                "OR m.thread_id IN (SELECT thread_id FROM thread_marks WHERE account_id = {ACCOUNT}
-                       AND (returned_at IS NOT NULL OR follow_due = 1))"
+                "UNION SELECT thread_id FROM thread_marks WHERE account_id = {ACCOUNT}
+                       AND (returned_at IS NOT NULL OR follow_due = 1)"
             )
         } else {
             String::new()
         };
+        // Whether a conversation has an email in this folder, looked up one at a time.
+        // Collecting every conversation of a big inbox first took a tenth of a second.
+        const HERE: &str = "EXISTS (SELECT 1 FROM messages x INDEXED BY messages_folder_thread
+                              WHERE x.folder_id = ?1 AND x.thread_id = c.thread_id)";
         // The conversations to look through. A quick look starts from what's recent anywhere
         // in the account, such as a reply sent today to an old email, and keeps those here.
         let threads = if recent {
             format!(
-                "SELECT thread_id FROM messages INDEXED BY messages_folder_date
-                   WHERE folder_id IN (SELECT id FROM folders WHERE account_id = {ACCOUNT}) AND date >= ?4
-                     AND thread_id IN (SELECT thread_id FROM messages WHERE folder_id = ?1)
-                 UNION SELECT thread_id FROM ({marked})
-                   WHERE thread_id IN (SELECT thread_id FROM messages WHERE folder_id = ?1)"
+                "SELECT c.thread_id FROM messages c INDEXED BY messages_folder_date
+                   WHERE c.folder_id IN (SELECT id FROM folders WHERE account_id = {ACCOUNT}) AND c.date >= ?4
+                     AND {HERE}
+                 UNION SELECT c.thread_id FROM ({marked}) c WHERE {HERE}"
             )
         } else {
             "SELECT thread_id FROM messages WHERE folder_id = ?1".to_string()
         };
+        // One list of conversations, so each one's emails are looked up directly rather
+        // than going through every email of the account to find them.
         (
                 "m.thread_id",
                 format!(
-                    "(m.thread_id IN ({threads}) {returned})
+                    "m.thread_id IN ({threads} {returned})
                      AND (f.role NOT IN ('trash', 'junk', 'drafts') OR f.id = ?1) AND (m.is_draft = 0 OR f.id = ?1)"
                 ),
                 "m.thread_id",
@@ -1141,14 +1191,18 @@ fn folder_counts_sql(grouped: bool) -> String {
     } else {
         "COALESCE(m.rfc_id, '#' || m.id)"
     };
+    // Each total from its own index lookup: joining every email of a big mailbox to its
+    // folder and grouping them took a tenth of a second, this takes a few thousandths.
     format!(
         "SELECT f.id, f.account_id, f.path, f.name, f.role, f.last_synced_at,
-                COUNT(m.id), COUNT(DISTINCT CASE WHEN m.seen = 0 AND (f.role != 'inbox' OR (m.screened = 0
-                  AND m.id NOT IN ({HELD})
-                  AND m.thread_id NOT IN (SELECT thread_id FROM thread_marks WHERE account_id = ?1
-                     AND (muted = 1 OR snooze_until IS NOT NULL)))) THEN {unread} END)
-         FROM folders f LEFT JOIN messages m ON m.folder_id = f.id
-         WHERE f.account_id = ?1 GROUP BY f.id ORDER BY {FOLDER_ORDER}"
+                (SELECT COUNT(*) FROM messages m WHERE m.folder_id = f.id),
+                (SELECT COUNT(DISTINCT {unread}) FROM messages m INDEXED BY messages_counts
+                 WHERE m.folder_id = f.id AND m.seen = 0 AND (f.role != 'inbox' OR (m.screened = 0
+                   AND m.id NOT IN ({HELD})
+                   AND m.thread_id NOT IN (SELECT thread_id FROM thread_marks WHERE account_id = ?1
+                      AND (muted = 1 OR snooze_until IS NOT NULL)))))
+         FROM folders f
+         WHERE f.account_id = ?1 ORDER BY {FOLDER_ORDER}"
     )
 }
 
@@ -1817,6 +1871,7 @@ impl Store {
         Ok(Store {
             conn: Arc::new(Mutex::new(conn)),
             readers: Vec::new(),
+            next_reader: std::sync::atomic::AtomicUsize::new(0),
             seen_held: Mutex::default(),
         })
     }
@@ -1944,8 +1999,18 @@ impl Store {
         Ok(())
     }
 
-    pub(crate) fn db(&self) -> MutexGuard<'_, Connection> {
-        self.conn.lock().unwrap_or_else(|e| e.into_inner())
+    /// The one connection that writes. Everything else waits while it's held, so a hold
+    /// long enough to be felt names where it came from in the log.
+    #[track_caller]
+    pub(crate) fn db(&self) -> Held<'_> {
+        let asked = Instant::now();
+        let guard = self.conn.lock().unwrap_or_else(|e| e.into_inner());
+        Held {
+            guard,
+            from: std::panic::Location::caller(),
+            asked,
+            got: Instant::now(),
+        }
     }
 
     /// Whichever is free. A database only held in memory, as in tests, has just the one connection.
@@ -1955,8 +2020,13 @@ impl Store {
                 return free;
             }
         }
+        // All busy: wait for them in turn, not always the first, so one slow look
+        // doesn't hold up everything that came after it.
+        let turn = self
+            .next_reader
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         self.readers
-            .first()
+            .get(turn % self.readers.len().max(1))
             .unwrap_or(&*self.conn)
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -2589,7 +2659,7 @@ impl Store {
 
     /// When every message's marks were last compared, not only what the server says changed.
     pub fn flags_checked_at(&self, folder_id: i64) -> Result<i64> {
-        Ok(self.db().query_row(
+        Ok(self.reading_db().query_row(
             "SELECT flags_checked_at FROM folders WHERE id = ?1",
             [folder_id],
             |r| r.get(0),
@@ -2735,10 +2805,11 @@ impl Store {
     /// mail under several labels would otherwise download it once for each. Only the
     /// Message-ID matching isn't enough: a scam would be read and shown with another email's words.
     pub fn copy_twin_bodies(&self, folder_id: i64, limit: i64) -> Result<usize> {
-        let mut db = self.db();
-        let tx = db.transaction()?;
+        // Finding them reads the whole folder, so it's done aside: the app goes on
+        // answering clicks meanwhile, and only the copying itself waits its turn.
         let twins: Vec<(i64, i64)> = {
-            let mut st = tx.prepare_cached(TWIN_BODIES)?;
+            let db = self.reading_db();
+            let mut st = db.prepare_cached(TWIN_BODIES)?;
             let rows = st.query_map(params![folder_id, limit], |r| {
                 Ok((r.get::<_, i64>(0)?, r.get::<_, Option<i64>>(1)?))
             })?;
@@ -2749,12 +2820,22 @@ impl Store {
             })
             .collect::<rusqlite::Result<_>>()?
         };
+        if twins.is_empty() {
+            return Ok(0);
+        }
+        let mut db = self.db();
+        let tx = db.transaction()?;
         for (id, twin) in &twins {
-            tx.execute(
-                "INSERT OR IGNORE INTO bodies (message_id, text, html, attachments_json, pgp_json)
-                 SELECT ?1, text, html, attachments_json, pgp_json FROM bodies WHERE message_id = ?2",
+            let copied = tx.execute(
+                "INSERT OR IGNORE INTO bodies (message_id, text, html, attachments_json, pgp_json, calendar)
+                 SELECT ?1, text, html, attachments_json, pgp_json, calendar FROM bodies WHERE message_id = ?2",
                 params![id, twin],
             )?;
+            // They were found before the copying could start, so the other may have gone
+            // meanwhile: its preview line is only taken along with its words.
+            if copied == 0 {
+                continue;
+            }
             tx.execute(
                 "UPDATE messages SET snippet = (SELECT snippet FROM messages WHERE id = ?2) WHERE id = ?1",
                 params![id, twin],
@@ -2962,14 +3043,15 @@ impl Store {
         let mut db = self.db();
         let tx = db.transaction()?;
         tx.execute(
-            "INSERT OR REPLACE INTO bodies (message_id, text, html, attachments_json, pgp_json)
-             VALUES (?1, ?2, ?3, ?4, ?5)",
+            "INSERT OR REPLACE INTO bodies (message_id, text, html, attachments_json, pgp_json, calendar)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             params![
                 message_id,
                 body.text,
                 body.html,
                 json(&body.attachments),
-                body.pgp.as_ref().map(json)
+                body.pgp.as_ref().map(json),
+                body.calendar
             ],
         )?;
         tx.execute(
@@ -3083,11 +3165,20 @@ impl Store {
         Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
 
+    /// Whether an email read before calendar parts were noted turned out to have one.
+    pub fn note_body_calendar(&self, message_id: i64, found: bool) -> Result<()> {
+        self.db().execute(
+            "UPDATE bodies SET calendar = ?2 WHERE message_id = ?1",
+            params![message_id, found],
+        )?;
+        Ok(())
+    }
+
     pub fn body(&self, message_id: i64) -> Result<Option<Body>> {
         Ok(self
-            .db()
+            .reading_db()
             .query_row(
-                "SELECT text, html, attachments_json, pgp_json FROM bodies WHERE message_id = ?1",
+                "SELECT text, html, attachments_json, pgp_json, calendar FROM bodies WHERE message_id = ?1",
                 [message_id],
                 row_to_body,
             )
@@ -3095,7 +3186,7 @@ impl Store {
     }
 
     pub fn message_location(&self, message_id: i64) -> Result<MessageLocation> {
-        self.db()
+        self.reading_db()
             .query_row(
                 "SELECT m.account_id, f.path, f.uid_validity, m.uid
                  FROM messages m JOIN folders f ON f.id = m.folder_id WHERE m.id = ?1",
@@ -3564,7 +3655,7 @@ impl Store {
     }
 
     pub fn inbox_folder_ids(&self) -> Result<Vec<(i64, String)>> {
-        let db = self.db();
+        let db = self.reading_db();
         let mut st = db.prepare(
             "SELECT f.id, a.prefs_json FROM folders f JOIN accounts a ON a.id = f.account_id
              WHERE f.role = 'inbox' ORDER BY f.id",
@@ -4190,7 +4281,7 @@ impl Store {
 fn summary_on(db: &Connection, account_id: i64, thread_id: &str) -> Result<Option<ThreadSummary>> {
     let home: Option<i64> = db
         .prepare_cached(
-            "SELECT m.folder_id FROM messages m JOIN folders f ON f.id = m.folder_id
+            "SELECT m.folder_id FROM messages m INDEXED BY messages_thread JOIN folders f ON f.id = m.folder_id
              WHERE m.account_id = ?1 AND m.thread_id = ?2
              ORDER BY f.role = 'inbox' DESC, f.role IN ('trash', 'junk') ASC, m.date DESC LIMIT 1",
         )?
@@ -4334,7 +4425,7 @@ impl Store {
         }
         let db = self.reading_db();
         let mut st = db.prepare(&format!(
-            "SELECT {MESSAGE_COLUMNS} FROM messages m
+            "SELECT {MESSAGE_COLUMNS} FROM messages m INDEXED BY messages_thread
              JOIN folders f ON f.id = m.folder_id
              LEFT JOIN bodies b ON b.message_id = m.id
              LEFT JOIN verdicts v ON v.message_key = m.message_key
@@ -4710,7 +4801,7 @@ impl Store {
 
     /// Senders whose email may load its pictures, as chosen by the person.
     pub fn image_senders(&self) -> Result<Vec<String>> {
-        let db = self.db();
+        let db = self.reading_db();
         let mut st = db.prepare(
             "SELECT substr(key, 8) FROM settings WHERE key LIKE 'images:%' ORDER BY key",
         )?;
@@ -4795,7 +4886,7 @@ impl Store {
     }
 
     pub fn draft(&self, id: i64) -> Result<Draft> {
-        self.db()
+        self.reading_db()
             .query_row(
                 &format!("SELECT {DRAFT_COLUMNS} FROM drafts WHERE id = ?1"),
                 [id],
@@ -4907,6 +4998,7 @@ fn row_to_detail(r: &Row<'_>) -> rusqlite::Result<MessageDetail> {
             html: r.get(13)?,
             attachments: parse_json(r.get::<_, String>(14)?),
             pgp: pgp_info(r.get(23)?),
+            calendar: None,
         })
     } else {
         None
@@ -4979,6 +5071,7 @@ fn row_to_body(r: &Row<'_>) -> rusqlite::Result<Body> {
         html: r.get(1)?,
         attachments: parse_json(r.get::<_, String>(2)?),
         pgp: pgp_info(r.get(3)?),
+        calendar: r.get(4)?,
     })
 }
 
@@ -5358,7 +5451,7 @@ impl Store {
 
     /// All the teams known here, oldest first.
     pub fn team_infos(&self) -> Result<Vec<TeamInfo>> {
-        let db = self.db();
+        let db = self.reading_db();
         let mut st =
             db.prepare("SELECT team_id, name, me, role FROM team_info ORDER BY team_id")?;
         let rows = st.query_map([], team_info_row)?;
@@ -5497,7 +5590,7 @@ impl Store {
     /// clash between teams.
     pub fn team_thread(&self, key: &str) -> Result<Option<TeamThreadRow>> {
         Ok(self
-            .db()
+            .reading_db()
             .query_row(
                 "SELECT thread_key, assignee, status, status_at, sent_count, last_sent_by,
                         last_sent_at, sending_by, seq, sending_until
@@ -5660,7 +5753,7 @@ impl Store {
     /// The newest email that came in, leaving out the team's own replies.
     pub fn thread_last_incoming(&self, account_id: i64, thread_id: &str) -> Result<i64> {
         Ok(self.db().query_row(
-            "SELECT COALESCE(MAX(m.date), 0) FROM messages m JOIN folders f ON f.id = m.folder_id
+            "SELECT COALESCE(MAX(m.date), 0) FROM messages m INDEXED BY messages_thread JOIN folders f ON f.id = m.folder_id
              WHERE m.account_id = ?1 AND m.thread_id = ?2 AND f.role != 'sent'",
             params![account_id, thread_id],
             |r| r.get(0),
@@ -5698,7 +5791,7 @@ impl Store {
 
     pub fn message_thread(&self, message_id: i64) -> Result<Option<String>> {
         Ok(self
-            .db()
+            .reading_db()
             .query_row(
                 "SELECT thread_id FROM messages WHERE id = ?1",
                 [message_id],
@@ -5734,7 +5827,7 @@ impl Store {
     /// it was started. Kept apart from the message, which a teammate may have moved.
     pub fn draft_team_base(&self, draft_id: i64) -> Result<Option<(String, i64)>> {
         Ok(self
-            .db()
+            .reading_db()
             .query_row(
                 "SELECT thread_key, sent_count FROM draft_team_base WHERE draft_id = ?1",
                 [draft_id],
@@ -6322,6 +6415,7 @@ mod tests {
             html: None,
             attachments: Vec::new(),
             pgp: None,
+            calendar: None,
         };
         assert_eq!(wanted(), [2, 1]);
         // An email with a file to open is marked so; one with only a picture in its text isn't.
@@ -6344,6 +6438,7 @@ mod tests {
                 inline,
             }],
             pgp: None,
+            calendar: None,
         };
         s.save_body(id(2), &with(false)).unwrap();
         assert_eq!(files(2), 1);

@@ -548,6 +548,7 @@ pub(crate) fn needs_you_sql(unread: bool) -> String {
                WHERE m.account_id = {ACCOUNT}
                  AND m.thread_id IN (
                    SELECT thread_id FROM messages WHERE folder_id = ?1 AND priority = 'needs_you'
+                     AND date > CAST(strftime('%s', 'now') AS INTEGER) - {NEEDS_YOU_SECONDS}
                    UNION SELECT thread_id FROM thread_marks WHERE account_id = {ACCOUNT}
                      AND (priority = 'needs_you' OR returned_at IS NOT NULL OR follow_due = 1))
                  AND m.thread_id NOT IN (SELECT thread_id FROM thread_marks
@@ -556,6 +557,9 @@ pub(crate) fn needs_you_sql(unread: bool) -> String {
                GROUP BY m.thread_id
                HAVING {needs} AND SUM(f.role = 'inbox' AND m.screened = 0) > 0 {still_unread})",
         needs = crate::store::NEEDS_YOU_SQL,
+        // Older ones can't count unless marked, and the marks are looked at anyway. Going
+        // through every conversation ever marked took a third of a second in a big inbox.
+        NEEDS_YOU_SECONDS = 2_592_000,
     )
 }
 
@@ -595,8 +599,10 @@ impl Store {
     /// A notice like "expires in 24 hours" has had its moment after a few days. Returns how many.
     fn retire_old_notices(&self, account_id: i64) -> Result<usize> {
         Ok(self.db().execute(
+            // By folder, so it reads only the emails that need them rather than the whole inbox.
             "UPDATE messages SET priority = 'good_to_know', priority_why = NULL
-             WHERE account_id = ?1 AND priority = 'needs_you' AND priority_why = 'May need action'
+             WHERE folder_id IN (SELECT id FROM folders WHERE account_id = ?1)
+               AND priority = 'needs_you' AND priority_why = 'May need action'
                AND date <= ?2",
             params![account_id, crate::identity::unix_now() - NOTICE_DAYS * DAY],
         )?)

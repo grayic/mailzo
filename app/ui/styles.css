@@ -2726,18 +2726,13 @@ textarea.input.template-body {
   line-height: var(--leading-body);
 }
 
-/* Other ways to start, as a second frosted card under the first, easy to notice. */
+/* Other ways to start, at the foot of the card under a light line. */
 .welcome-options {
-  width: 100%;
-  max-width: var(--w-card);
-  margin-top: var(--s-6);
-  padding: var(--s-3);
-  border-radius: var(--r-2xl);
-  background: var(--welcome-card);
-  -webkit-backdrop-filter: blur(var(--s-10)) saturate(1.3);
-  backdrop-filter: blur(var(--s-10)) saturate(1.3);
-  box-shadow: 0 0 0 1px var(--line), var(--shadow-2);
-  animation: dialog var(--dur-base) var(--ease);
+  margin-inline: calc(-1 * var(--s-10));
+  margin-bottom: calc(var(--s-4) - var(--s-10));
+  padding: var(--s-5) var(--s-10) 0;
+  border-top: 1px solid var(--line);
+  text-align: center;
 }
 
 .welcome-option {

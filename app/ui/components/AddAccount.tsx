@@ -425,8 +425,8 @@ export function AddAccount({
             <button type="button" className="btn btn-ghost btn-block" onClick={onCancel}>
               {tx("Cancel")}</button>
           )}
+          {children && <div className="welcome-options">{children}</div>}
         </form>
-        {children && <div className="welcome-options">{children}</div>}
       </div>
     </div>
   );

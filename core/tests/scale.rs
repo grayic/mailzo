@@ -153,6 +153,9 @@ fn a_hundred_thousand_emails_stay_quick() {
     timed("the health page", 400, || {
         store.mail_health(5_000_000, 0).unwrap()
     });
+    timed("put-aside counts", 300, || {
+        store.later_counts().unwrap();
+    });
     timed("open a conversation", 50, || {
         store
             .get_thread(account.id, "99999@scale.test", Some(inbox))

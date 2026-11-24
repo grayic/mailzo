@@ -1465,8 +1465,9 @@ impl Engine {
             })
             .map(|(i, a)| a.part.unwrap_or(i as u32))
             .collect();
-        // Invitations often come as an inline part rather than an attachment.
-        let raw_mentions = body.attachments.is_empty();
+        // Invitations often come as an inline part rather than an attachment. Mail read
+        // before that was noted has to be looked at on the server.
+        let raw_mentions = body.calendar.unwrap_or(body.attachments.is_empty());
         if wanted.is_empty() && !raw_mentions {
             return Ok(None);
         }
@@ -1474,7 +1475,14 @@ impl Engine {
         let text = match wanted.first() {
             Some(part) => parse::attachment_part(&raw, *part)
                 .map(|(_, _, b)| String::from_utf8_lossy(&b).to_string()),
-            None => parse::calendar_part(&raw),
+            None => {
+                let found = parse::calendar_part(&raw);
+                // Mail read before this was noted: kept now, so it's only fetched the once.
+                if body.calendar.is_none() {
+                    self.store.note_body_calendar(message_id, found.is_some())?;
+                }
+                found
+            }
         };
         let Some(text) = text else { return Ok(None) };
         let file = ics::parse(&text, local_offset());

@@ -503,6 +503,7 @@ mod tests {
             )),
             attachments: Vec::new(),
             pgp: None,
+            calendar: None,
         };
         s.save_body_by_uid(folder, 1, &footer("hn.inspectlet.com"))
             .unwrap();

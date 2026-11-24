@@ -64,11 +64,13 @@ pub fn parse_body(raw: &[u8]) -> Body {
             html: None,
             attachments: vec![],
             pgp: None,
+            calendar: Some(false),
         };
     };
     // The parser builds HTML for plain-text mail. Keep only HTML the sender wrote,
     // so plain mail can follow the app's own theme.
     let has_real_html = m.html_body().any(|p| p.is_content_type("text", "html"));
+    let calendar = m.parts().any(|p| p.is_content_type("text", "calendar"));
     let mut html = has_real_html
         .then(|| m.body_html(0).map(|c| c.into_owned()))
         .flatten();
@@ -122,6 +124,7 @@ pub fn parse_body(raw: &[u8]) -> Body {
         html,
         attachments,
         pgp: None,
+        calendar: Some(calendar),
     }
 }
 
@@ -245,6 +248,14 @@ mod tests {
         assert!(html.contains("data:image/png;base64,aGVsbG8="), "{html}");
         assert!(html.contains("cid:gone@x"));
         assert!(body.attachments[0].inline);
+    }
+
+    #[test]
+    fn an_inline_invitation_is_noted_when_the_email_is_read() {
+        let invite = b"Subject: a\r\nMIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary=b\r\n\r\n--b\r\nContent-Type: text/plain\r\n\r\nCome along\r\n--b\r\nContent-Type: text/calendar; method=REQUEST\r\n\r\nBEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n--b--\r\n";
+        assert_eq!(parse_body(invite).calendar, Some(true));
+        let plain = b"Subject: a\r\nContent-Type: text/plain\r\n\r\nHi\r\n";
+        assert_eq!(parse_body(plain).calendar, Some(false));
     }
 
     #[test]

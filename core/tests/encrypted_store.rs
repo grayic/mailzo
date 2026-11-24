@@ -43,6 +43,7 @@ fn body(text: &str) -> Body {
         html: None,
         attachments: vec![],
         pgp: None,
+        calendar: None,
     }
 }
 

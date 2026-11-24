@@ -295,6 +295,10 @@ pub struct Body {
     pub attachments: Vec<AttachmentInfo>,
     /// Set for encrypted or signed mail only.
     pub pgp: Option<PgpInfo>,
+    /// Whether a calendar part is inside, as invitations often send one inline. Unknown for
+    /// mail read before this was noted, which then has to be looked at on the server.
+    #[serde(skip)]
+    pub calendar: Option<bool>,
 }
 
 /// What an encrypted or signed email's protection amounts to.

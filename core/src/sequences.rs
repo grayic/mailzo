@@ -292,7 +292,7 @@ impl Store {
         let db = self.db();
         // A reply filed as spam is still a reply.
         let mut st = db.prepare_cached(
-            "SELECT m.from_addr FROM messages m JOIN folders f ON f.id = m.folder_id
+            "SELECT m.from_addr FROM messages m INDEXED BY messages_thread JOIN folders f ON f.id = m.folder_id
              WHERE m.account_id = ?1 AND m.thread_id = ?2 AND m.date >= ?3
                AND f.role NOT IN ('sent', 'drafts', 'trash') AND m.is_draft = 0",
         )?;

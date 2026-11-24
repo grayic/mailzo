@@ -1430,7 +1430,7 @@ dependencies = [
 
 [[package]]
 name = "devhost"
-version = "1.2.2"
+version = "1.2.3"
 dependencies = [
  "axum",
  "data-encoding",
@@ -1852,7 +1852,7 @@ dependencies = [
 
 [[package]]
 name = "fakeai"
-version = "1.2.2"
+version = "1.2.3"
 dependencies = [
  "axum",
  "serde_json",
@@ -1861,7 +1861,7 @@ dependencies = [
 
 [[package]]
 name = "fakegoogle"
-version = "1.2.2"
+version = "1.2.3"
 dependencies = [
  "axum",
  "data-encoding",
@@ -1873,7 +1873,7 @@ dependencies = [
 
 [[package]]
 name = "fakeimap"
-version = "1.2.2"
+version = "1.2.3"
 dependencies = [
  "data-encoding",
  "tokio",
@@ -1881,7 +1881,7 @@ dependencies = [
 
 [[package]]
 name = "fakeoauth"
-version = "1.2.2"
+version = "1.2.3"
 dependencies = [
  "axum",
  "data-encoding",
@@ -1893,7 +1893,7 @@ dependencies = [
 
 [[package]]
 name = "fakesmtp"
-version = "1.2.2"
+version = "1.2.3"
 dependencies = [
  "data-encoding",
  "fakeimap",
@@ -2891,7 +2891,7 @@ dependencies = [
 
 [[package]]
 name = "inbox-app"
-version = "1.2.2"
+version = "1.2.3"
 dependencies = [
  "block2",
  "fakeimap",
@@ -2915,7 +2915,7 @@ dependencies = [
 
 [[package]]
 name = "inbox-keyhelper"
-version = "1.2.2"
+version = "1.2.3"
 dependencies = [
  "mailcore",
 ]
@@ -3442,7 +3442,7 @@ dependencies = [
 
 [[package]]
 name = "mailcore"
-version = "1.2.2"
+version = "1.2.3"
 dependencies = [
  "ammonia",
  "async-imap",
